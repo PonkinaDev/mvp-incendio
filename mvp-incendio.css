@@ -1,0 +1,328 @@
+/* =============================================================================
+   MVP INCENDIO — Stylesheet
+   Naming convention: BEM-like, component-scoped classes.
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   Reset & base
+   ----------------------------------------------------------------------------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #000;
+  font-family: Arial, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  color: #fff;
+}
+
+/* -----------------------------------------------------------------------------
+   YouTube player wrapper
+   The iframe is injected by the YT IFrame API inside #yt-player.
+   ----------------------------------------------------------------------------- */
+#yt-wrap {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 1;
+}
+
+#yt-wrap iframe {
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none;
+}
+
+/* Prevents the user from accidentally clicking the iframe */
+#yt-block {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  background: transparent;
+}
+
+/* -----------------------------------------------------------------------------
+   Title / entry screen
+   ----------------------------------------------------------------------------- */
+#title-screen {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 80;
+  transition: opacity 0.8s ease;
+}
+
+#title-screen.hide {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.title-logo {
+  font-size: clamp(2.5rem, 8vw, 6rem);
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow:
+    0 0 60px rgba(255, 80, 0, 0.9),
+    0 0 120px rgba(255, 40, 0, 0.4);
+  margin-bottom: 0.5rem;
+}
+
+.title-sub {
+  font-size: 0.9rem;
+  letter-spacing: 0.5em;
+  color: #666;
+  text-transform: uppercase;
+  margin-bottom: 3rem;
+}
+
+.play-btn {
+  background: none;
+  border: 2px solid #fff;
+  color: #fff;
+  font-size: 1rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  padding: 1rem 3rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.play-btn:hover {
+  background: #fff;
+  color: #000;
+}
+
+/* -----------------------------------------------------------------------------
+   Decision panel
+   Slides up from the bottom once a scene ends.
+   ----------------------------------------------------------------------------- */
+#choices {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  padding: 1.5rem 2rem 2rem;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.97) 30%);
+  transform: translateY(110%);
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+#choices.show {
+  transform: translateY(0);
+}
+
+.choices-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.45em;
+  color: #777;
+  text-transform: uppercase;
+  margin-bottom: 0.2rem;
+}
+
+.choices-row {
+  display: flex;
+  gap: 0.9rem;
+  width: 100%;
+  max-width: 900px;
+  justify-content: center;
+}
+
+/* Individual choice button */
+.choice-btn {
+  flex: 1;
+  max-width: 300px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  padding: 1rem 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+  text-transform: uppercase;
+  line-height: 1.35;
+  backdrop-filter: blur(8px);
+}
+
+.choice-btn small {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: #aaa;
+  margin-top: 0.25rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Animated underline on hover */
+.choice-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  background: #fff;
+  transition: width 0.2s ease;
+}
+
+.choice-btn:hover::after {
+  width: 100%;
+}
+
+.choice-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.55);
+  transform: translateY(-2px);
+}
+
+/* -----------------------------------------------------------------------------
+   Auto-select countdown bar
+   ----------------------------------------------------------------------------- */
+#countdown-bar {
+  width: 100%;
+  max-width: 900px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+#countdown-fill {
+  height: 100%;
+  background: #ff4400;
+  width: 100%;
+  transform-origin: left;
+}
+
+#countdown-fill.running {
+  animation: shrink 15s linear forwards;
+}
+
+@keyframes shrink {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* -----------------------------------------------------------------------------
+   Result overlay  (death / victory)
+   Uses a solid black background to prevent any video frame from bleeding through.
+   ----------------------------------------------------------------------------- */
+#overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 90;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+}
+
+.overlay-tag {
+  font-size: 0.68rem;
+  letter-spacing: 0.5em;
+  color: #555;
+  text-transform: uppercase;
+  margin-bottom: 1.2rem;
+}
+
+.overlay-title {
+  font-size: clamp(2.5rem, 7vw, 5rem);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+  line-height: 1;
+}
+
+.overlay-title.death {
+  color: #ff3300;
+  text-shadow: 0 0 40px rgba(255, 50, 0, 0.6);
+}
+
+.overlay-title.win {
+  color: #39ff14;
+  text-shadow: 0 0 40px rgba(57, 255, 20, 0.5);
+}
+
+.overlay-desc {
+  font-size: 1rem;
+  color: #aaa;
+  max-width: 480px;
+  line-height: 1.8;
+  margin-bottom: 2.5rem;
+}
+
+.overlay-btns {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.overlay-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #bbb;
+  padding: 0.8rem 1.8rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.overlay-btn:hover {
+  border-color: #fff;
+  color: #fff;
+}
+
+.overlay-btn.primary {
+  border-color: rgba(57, 255, 20, 0.45);
+  color: #39ff14;
+}
+
+.overlay-btn.primary:hover {
+  background: rgba(57, 255, 20, 0.08);
+  border-color: #39ff14;
+  box-shadow: 0 0 20px rgba(57, 255, 20, 0.2);
+}
+
+/* -----------------------------------------------------------------------------
+   Responsive adjustments
+   ----------------------------------------------------------------------------- */
+@media (max-width: 600px) {
+  .choices-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .choice-btn {
+    max-width: 100%;
+  }
+
+  .overlay-btns {
+    flex-direction: column;
+    align-items: center;
+  }
+}

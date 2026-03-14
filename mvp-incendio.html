@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MVP INCENDIO</title>
+  <link rel="stylesheet" href="mvp-incendio.css">
+</head>
+<body>
+
+  <!-- YouTube player container (injected by IFrame API) -->
+  <div id="yt-wrap">
+    <div id="yt-player"></div>
+  </div>
+
+  <!-- Transparent layer that blocks user interaction with the iframe -->
+  <div id="yt-block"></div>
+
+  <!-- Title / entry screen -->
+  <div id="title-screen">
+    <div class="title-logo">MVP INCENDIO</div>
+    <div class="title-sub">Una historia interactiva</div>
+    <button class="play-btn" id="start-btn">▶ COMENZAR</button>
+  </div>
+
+  <!-- Decision panel (slides up after each scene ends) -->
+  <div id="choices">
+    <div class="choices-label">¿Qué decides?</div>
+    <div class="choices-row" id="choices-row"></div>
+    <div id="countdown-bar">
+      <div id="countdown-fill"></div>
+    </div>
+  </div>
+
+  <!-- Result overlay: shown on death or victory -->
+  <div id="overlay">
+    <div class="overlay-tag"   id="overlay-tag"></div>
+    <div class="overlay-title" id="overlay-title"></div>
+    <div class="overlay-desc"  id="overlay-desc"></div>
+    <div class="overlay-btns"  id="overlay-btns"></div>
+  </div>
+
+  <!-- YouTube IFrame API (must load before app script) -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="mvp-incendio.js"></script>
+</body>
+</html>
