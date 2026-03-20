@@ -4,26 +4,167 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MVP INCENDIO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Bebas+Neue&family=Inter:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="mvp-incendio.css">
 </head>
 <body>
 
-  <!-- YouTube player container (injected by IFrame API) -->
+  <!-- YouTube game player container (injected by IFrame API) -->
   <div id="yt-wrap">
     <div id="yt-player"></div>
   </div>
-
-  <!-- Transparent layer that blocks user interaction with the iframe -->
   <div id="yt-block"></div>
 
-  <!-- Title / entry screen -->
+  <!-- ═══════════════════════════════════════════════════
+       TITLE / ENTRY SCREEN  –  redesigned
+       ═══════════════════════════════════════════════════ -->
   <div id="title-screen">
-    <div class="title-logo">MVP INCENDIO</div>
-    <div class="title-sub">Una historia interactiva</div>
-    <button class="play-btn" id="start-btn">▶ COMENZAR</button>
+
+    <!-- Fire background video (iframe, muted autoplay loop) -->
+    <!-- Reemplaza FIRE_VIDEO_ID con el ID del video de incendio que prefieras -->
+    <div id="title-bg">
+      <iframe
+        id="title-fire-yt"
+        src="https://www.youtube.com/embed/bx01-4aVXO4?autoplay=1&mute=1&loop=1&playlist=bx01-4aVXO4&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&disablekb=1"
+        frameborder="0"
+        allow="autoplay; encrypted-media"
+        allowfullscreen>
+      </iframe>
+      <div id="title-vignette"></div>
+    </div>
+
+    <!-- Title content -->
+    <div id="title-content">
+      <h1 class="title-logo">
+        <span class="flame-text">MVP</span>
+        <br>
+        <span class="flame-text">INCENDIO</span>
+      </h1>
+      <p class="title-sub">Una historia interactiva</p>
+
+      <nav class="title-menu">
+        <button class="menu-btn" id="start-btn">
+          <span class="menu-icon">▶</span> Jugar
+        </button>
+        <button class="menu-btn" id="how-btn">
+          <span class="menu-icon">?</span> Cómo jugar
+        </button>
+        <button class="menu-btn" id="credits-btn">
+          <span class="menu-icon">★</span> Créditos
+        </button>
+      </nav>
+    </div>
+
+  </div><!-- /#title-screen -->
+
+
+  <!-- ═══════════════════════════════════════════════════
+       MODAL — Cómo jugar
+       ═══════════════════════════════════════════════════ -->
+  <div id="modal-how" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="modal-how"></div>
+    <div class="modal-box">
+      <button class="modal-close" data-close="modal-how">✕</button>
+      <h2 class="modal-title">Cómo jugar</h2>
+      <!-- Reemplaza esta sección con tu imagen de instrucciones -->
+      <div class="howto-placeholder">
+        <div class="howto-placeholder-inner">
+          <span>🖼</span>
+          <p>Reemplaza esto con la imagen de instrucciones</p>
+          <small>Agrega un &lt;img src="instrucciones.jpg"&gt; aquí</small>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- Decision panel (slides up after each scene ends) -->
+  <!-- ═══════════════════════════════════════════════════
+       MODAL — Créditos
+       ═══════════════════════════════════════════════════ -->
+  <div id="modal-credits" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="modal-credits"></div>
+    <div class="modal-box modal-box--credits">
+      <button class="modal-close" data-close="modal-credits">✕</button>
+      <h2 class="modal-title">Créditos</h2>
+      <ul class="credits-list">
+        <li>
+          <span class="credits-role">Desarrollador</span>
+          <span class="credits-name">Barragán Imbett Jaime</span>
+        </li>
+        <li>
+          <span class="credits-role">Desarrollador</span>
+          <span class="credits-name">Castro Molina Paula Andrea</span>
+        </li>
+        <li>
+          <span class="credits-role">Desarrollador</span>
+          <span class="credits-name">Figueroa Dayan Camilo</span>
+        </li>
+      </ul>
+      <p class="credits-year">© 2025 — MVP Incendio</p>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════
+       PAUSE BUTTON (visible during gameplay)
+       ═══════════════════════════════════════════════════ -->
+  <button id="pause-btn" aria-label="Pausar">
+    <span id="pause-icon">
+      <!-- Two bars = pause -->
+      <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5"  y="3" width="4" height="18" rx="1"/>
+        <rect x="15" y="3" width="4" height="18" rx="1"/>
+      </svg>
+    </span>
+  </button>
+
+  <!-- ═══════════════════════════════════════════════════
+       PAUSE MENU OVERLAY
+       ═══════════════════════════════════════════════════ -->
+  <div id="pause-menu" aria-hidden="true">
+    <div id="pause-menu-box">
+
+      <p class="pause-label">PAUSA</p>
+
+      <nav class="pause-nav">
+        <button class="pause-nav-btn" id="resume-btn">
+          <span class="pause-nav-icon">▶</span> Continuar
+        </button>
+        <button class="pause-nav-btn" id="pause-how-btn">
+          <span class="pause-nav-icon">?</span> Cómo jugar
+        </button>
+        <button class="pause-nav-btn pause-nav-btn--danger" id="back-to-menu-btn">
+          <span class="pause-nav-icon">⏮</span> Menú principal
+        </button>
+      </nav>
+
+      <!-- Volume control -->
+      <div class="volume-control">
+        <label class="volume-label" for="volume-slider">
+          <svg class="vol-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+          </svg>
+          Volumen
+        </label>
+        <div class="slider-row">
+          <span class="vol-min">0</span>
+          <input
+            type="range"
+            id="volume-slider"
+            class="volume-slider"
+            min="0" max="100" value="80"
+            aria-label="Volumen general"
+          >
+          <span class="vol-max" id="vol-display">80</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       GAME UI
+       ═══════════════════════════════════════════════════ -->
   <div id="choices">
     <div class="choices-label">¿Qué decides?</div>
     <div class="choices-row" id="choices-row"></div>
@@ -32,7 +173,6 @@
     </div>
   </div>
 
-  <!-- Result overlay: shown on death or victory -->
   <div id="overlay">
     <div class="overlay-tag"   id="overlay-tag"></div>
     <div class="overlay-title" id="overlay-title"></div>
@@ -40,7 +180,7 @@
     <div class="overlay-btns"  id="overlay-btns"></div>
   </div>
 
-  <!-- YouTube IFrame API (must load before app script) -->
+  <!-- YouTube IFrame API -->
   <script src="https://www.youtube.com/iframe_api"></script>
   <script src="mvp-incendio.js"></script>
 </body>

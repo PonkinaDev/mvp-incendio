@@ -11,6 +11,7 @@
  *        ChoiceUI    → renders decision buttons and the countdown bar.
  *        OverlayUI   → renders death / victory result screens.
  *        GameEngine  → orchestrates the flow between the modules above.
+ *        TitleMenu   → manages the title screen nav modals (NEW).
  *
  *  O — Open / Closed
  *        New scene types (e.g. "minigame", "timed") can be added to
@@ -37,34 +38,7 @@
 
 /* =============================================================================
    MODULE: StoryData
-   Responsibility: Define the complete narrative graph.
-   Each node is a plain data object; no executable logic lives here.
    ============================================================================= */
-
-/**
- * @typedef {Object} Choice
- * @property {string} label - Button label shown to the user.
- * @property {string} sub   - Short description shown below the label.
- * @property {string} next  - Key of the node to navigate to.
- */
-
-/**
- * @typedef {Object} OverlayButton
- * @property {string} label - Button label.
- * @property {string} next  - Key of the node to navigate to on click.
- * @property {string} style - Optional CSS class suffix (e.g. "primary").
- */
-
-/**
- * @typedef {Object} StoryNode
- * @property {string}         [video]   - YouTube video ID (absent for win/death-only nodes).
- * @property {string}         type      - "choices" | "autoNext" | "death" | "win".
- * @property {Choice[]}       [choices] - Available choices (type === "choices").
- * @property {string}         [next]    - Auto-advance target (type === "autoNext").
- * @property {string}         [title]   - Result screen title (type === "death" | "win").
- * @property {string}         [desc]    - Result screen description.
- * @property {OverlayButton[]}[btns]    - Result screen action buttons.
- */
 
 /** @enum {string} Video IDs indexed by logical name. */
 const VIDEO_IDS = Object.freeze({
@@ -79,14 +53,9 @@ const VIDEO_IDS = Object.freeze({
   MVP9: '3dBtkS7063c',
 });
 
-/**
- * Complete story graph.
- * Keys are node identifiers referenced by `next` properties.
- * @type {Object.<string, StoryNode>}
- */
+/** @type {Object.<string, StoryNode>} */
 const STORY_GRAPH = Object.freeze({
 
-  /* ── Entry point ─────────────────────────────────────────── */
   intro: {
     video: VIDEO_IDS.MVP1,
     type: 'choices',
@@ -96,7 +65,6 @@ const STORY_GRAPH = Object.freeze({
     ],
   },
 
-  /* ── Route A: elevator → death ───────────────────────────── */
   ascensor: {
     video: VIDEO_IDS.MVP2,
     type: 'death',
@@ -105,7 +73,6 @@ const STORY_GRAPH = Object.freeze({
     btns: [{ label: '↺ Reintentar', next: 'intro', style: '' }],
   },
 
-  /* ── Route B: stairs → three choices ─────────────────────── */
   escaleras: {
     video: VIDEO_IDS.MVP3,
     type: 'choices',
@@ -116,7 +83,6 @@ const STORY_GRAPH = Object.freeze({
     ],
   },
 
-  /* B-1: jump fire → death */
   saltar_fuego: {
     video: VIDEO_IDS.MVP8,
     type: 'death',
@@ -125,7 +91,6 @@ const STORY_GRAPH = Object.freeze({
     btns: [{ label: '↺ Reintentar desde aquí', next: 'escaleras', style: '' }],
   },
 
-  /* B-2: alternative route → auto-chain MVP5 → MVP9 → MVP6 → exit choice */
   ruta_b1: { video: VIDEO_IDS.MVP5, type: 'autoNext', next: 'ruta_b2' },
   ruta_b2: { video: VIDEO_IDS.MVP9, type: 'autoNext', next: 'ruta_b3' },
   ruta_b3: {
@@ -137,7 +102,6 @@ const STORY_GRAPH = Object.freeze({
     ],
   },
 
-  /* B-3: fire hose → MVP4 → exit choice */
   manguera: {
     video: VIDEO_IDS.MVP4,
     type: 'choices',
@@ -147,7 +111,6 @@ const STORY_GRAPH = Object.freeze({
     ],
   },
 
-  /* Emergency exit from hose route → flashover death */
   salida_emerg_manguera: {
     video: VIDEO_IDS.MVP7,
     type: 'death',
@@ -159,7 +122,6 @@ const STORY_GRAPH = Object.freeze({
     ],
   },
 
-  /* ── Victory ─────────────────────────────────────────────── */
   win_salida: {
     type: 'win',
     title: '¡SALISTE!',
@@ -170,41 +132,16 @@ const STORY_GRAPH = Object.freeze({
 
 /* =============================================================================
    MODULE: YouTubePlayer
-   Responsibility: Manage all interaction with the YouTube IFrame API.
-   Exposes load() and stop(); notifies the engine via onEnded callback.
    ============================================================================= */
-
-/**
- * @class YouTubePlayer
- * Wraps the YouTube IFrame API player.
- * Consumers interact only through the public interface: load() and stop().
- */
 class YouTubePlayer {
-  /**
-   * @param {string}   containerId - DOM id where the iframe will be injected.
-   * @param {Function} onEnded     - Callback invoked when the current video ends.
-   */
   constructor(containerId, onEnded) {
-    /** @private @type {YT.Player|null} */
-    this._player = null;
-
-    /** @private @type {boolean} */
-    this._ready = false;
-
-    /** @private @type {string|null} Queued video ID waiting for player readiness. */
+    this._player         = null;
+    this._ready          = false;
     this._pendingVideoId = null;
-
-    /** @private @type {Function} */
-    this._onEnded = onEnded;
-
-    /** @private @type {string} */
-    this._containerId = containerId;
+    this._onEnded        = onEnded;
+    this._containerId    = containerId;
   }
 
-  /**
-   * Initialises the YT.Player instance.
-   * Must be called from the global onYouTubeIframeAPIReady() hook.
-   */
   init() {
     this._player = new YT.Player(this._containerId, {
       width: '100%',
@@ -229,31 +166,33 @@ class YouTubePlayer {
     });
   }
 
-  /**
-   * Loads and plays a YouTube video by ID.
-   * If the player is not yet ready the request is queued.
-   * @param {string} videoId - YouTube video ID.
-   */
   load(videoId) {
-    if (!this._ready) {
-      this._pendingVideoId = videoId;
-      return;
-    }
+    if (!this._ready) { this._pendingVideoId = videoId; return; }
     this._player.loadVideoById({ videoId, startSeconds: 0 });
   }
 
-  /**
-   * Stops the currently playing video.
-   */
   stop() {
-    if (this._ready && this._player) {
-      this._player.stopVideo();
-    }
+    if (this._ready && this._player) this._player.stopVideo();
   }
 
-  /* ── Private helpers ─────────────────────────────────────── */
+  /** Pauses the currently playing video. */
+  pauseVideo() {
+    if (this._ready && this._player) this._player.pauseVideo();
+  }
 
-  /** @private Handles player ready event. */
+  /** Resumes a paused video. */
+  resume() {
+    if (this._ready && this._player) this._player.playVideo();
+  }
+
+  /**
+   * Sets the player volume.
+   * @param {number} vol - 0 to 100.
+   */
+  setVolume(vol) {
+    if (this._ready && this._player) this._player.setVolume(vol);
+  }
+
   _handleReady() {
     this._ready = true;
     if (this._pendingVideoId) {
@@ -262,61 +201,31 @@ class YouTubePlayer {
     }
   }
 
-  /**
-   * @private
-   * @param {YT.OnStateChangeEvent} event
-   */
   _handleStateChange(event) {
-    if (event.data === YT.PlayerState.ENDED) {
-      this._onEnded();
-    }
+    if (event.data === YT.PlayerState.ENDED) this._onEnded();
   }
 }
 
 /* =============================================================================
    MODULE: ChoiceUI
-   Responsibility: Render the decision panel and manage the auto-select timer.
    ============================================================================= */
-
-/**
- * @class ChoiceUI
- * Renders choice buttons and a countdown bar.
- * Invokes onChoose(nextNodeId) when the user picks an option or time runs out.
- */
 class ChoiceUI {
-  /**
-   * @param {Object}   elements
-   * @param {Element}  elements.panel      - The sliding panel container.
-   * @param {Element}  elements.row        - Container for the choice buttons.
-   * @param {Element}  elements.fill       - The countdown bar fill element.
-   * @param {Function} onChoose            - Callback invoked with the chosen node id.
-   * @param {number}   [autoSelectMs=15000]- Milliseconds before auto-selecting.
-   */
   constructor({ panel, row, fill }, onChoose, autoSelectMs = 15000) {
     this._panel        = panel;
     this._row          = row;
     this._fill         = fill;
     this._onChoose     = onChoose;
     this._autoSelectMs = autoSelectMs;
-
-    /** @private @type {number|null} */
-    this._timer = null;
+    this._timer        = null;
   }
 
-  /**
-   * Renders choices for the given node and shows the panel.
-   * @param {StoryNode} node - Must be of type "choices".
-   */
   show(node) {
     this._row.innerHTML = node.choices
-      .map(
-        (c) => `<button class="choice-btn" data-next="${c.next}">
-          ${c.label}${c.sub ? `<small>${c.sub}</small>` : ''}
-        </button>`
-      )
+      .map((c) => `<button class="choice-btn" data-next="${c.next}">
+        ${c.label}${c.sub ? `<small>${c.sub}</small>` : ''}
+      </button>`)
       .join('');
 
-    // Attach click listeners (avoids inline onclick in markup)
     this._row.querySelectorAll('.choice-btn').forEach((btn) => {
       btn.addEventListener('click', () => this._onChoose(btn.dataset.next));
     });
@@ -325,35 +234,20 @@ class ChoiceUI {
     this._startCountdown(node);
   }
 
-  /**
-   * Hides the panel and cancels any pending auto-select timer.
-   */
   hide() {
     this._panel.classList.remove('show');
     this._stopCountdown();
   }
 
-  /**
-   * Handles keyboard shortcut selection (keys "1", "2", "3").
-   * @param {string}    key  - Pressed key value.
-   * @param {StoryNode} node - Current node with choices array.
-   */
   handleKeyPress(key, node) {
     const index = ['1', '2', '3'].indexOf(key);
-    if (index !== -1 && node.choices[index]) {
-      this._onChoose(node.choices[index].next);
-    }
+    if (index !== -1 && node.choices[index]) this._onChoose(node.choices[index].next);
   }
 
-  /* ── Private helpers ─────────────────────────────────────── */
-
-  /** @private Starts the animated countdown bar and the auto-select timer. */
   _startCountdown(node) {
-    // Reset animation by forcing a reflow
     this._fill.className = '';
     void this._fill.offsetHeight;
     this._fill.className = 'running';
-
     this._stopCountdown();
     this._timer = setTimeout(() => {
       const random = node.choices[Math.floor(Math.random() * node.choices.length)];
@@ -361,7 +255,6 @@ class ChoiceUI {
     }, this._autoSelectMs);
   }
 
-  /** @private Stops the countdown timer and resets the bar. */
   _stopCountdown() {
     clearTimeout(this._timer);
     this._timer = null;
@@ -371,30 +264,15 @@ class ChoiceUI {
 
 /* =============================================================================
    MODULE: OverlayUI
-   Responsibility: Render the death / victory result screen.
    ============================================================================= */
-
-/**
- * @class OverlayUI
- * Shows a full-screen result overlay with a title, description and action buttons.
- */
 class OverlayUI {
-  /**
-   * @param {Element}  container - The overlay root element (#overlay).
-   * @param {Function} onAction  - Callback invoked with the chosen next node id.
-   */
   constructor(container, onAction) {
     this._container = container;
     this._onAction  = onAction;
   }
 
-  /**
-   * Populates and displays the overlay for the given node.
-   * @param {StoryNode} node - Must be of type "death" or "win".
-   */
   show(node) {
     const isWin = node.type === 'win';
-
     this._container.querySelector('#overlay-tag').textContent   = isWin ? 'Resultado final' : '— Fin —';
     this._container.querySelector('#overlay-title').textContent = node.title;
     this._container.querySelector('#overlay-title').className   = `overlay-title ${isWin ? 'win' : 'death'}`;
@@ -412,118 +290,286 @@ class OverlayUI {
     this._container.style.display = 'flex';
   }
 
-  /**
-   * Hides the overlay.
-   */
   hide() {
     this._container.style.display = 'none';
   }
 }
 
 /* =============================================================================
-   MODULE: GameEngine
-   Responsibility: Orchestrate narrative flow by wiring the other modules.
-   Holds the current state and delegates rendering/playback to its dependencies.
+   MODULE: TitleMenu  (NEW)
+   Responsibility: Wire "Cómo jugar" and "Créditos" modals on the title screen.
    ============================================================================= */
 
 /**
- * @class GameEngine
- * Central controller that reads STORY_GRAPH and drives the experience.
- * Dependencies are injected to keep the engine decoupled from implementations.
+ * @class TitleMenu
+ * Manages the title screen secondary navigation (modal windows).
+ * Completely decoupled from the game engine.
  */
-class GameEngine {
-  /**
-   * @param {Object.<string, StoryNode>} storyGraph - The narrative data.
-   * @param {YouTubePlayer}              player     - Video playback module.
-   * @param {ChoiceUI}                   choiceUI   - Decision panel module.
-   * @param {OverlayUI}                  overlayUI  - Result overlay module.
-   */
-  constructor(storyGraph, player, choiceUI, overlayUI) {
-    this._story     = storyGraph;
-    this._player    = player;
-    this._choiceUI  = choiceUI;
-    this._overlayUI = overlayUI;
-
-    /** @private @type {StoryNode|null} */
-    this._currentNode = null;
+class TitleMenu {
+  constructor() {
+    this._modals = {
+      how:     document.getElementById('modal-how'),
+      credits: document.getElementById('modal-credits'),
+    };
+    this._bindEvents();
   }
 
-  /**
-   * Transitions to the given scene node.
-   * Called at start and whenever a choice is made.
-   * @param {string} nodeId - Key of the target node in the story graph.
-   */
+  /** Wire all button clicks and backdrop / close-button dismissals. */
+  _bindEvents() {
+    // Open buttons
+    document.getElementById('how-btn').addEventListener('click', () => this.openModal('how'));
+    document.getElementById('credits-btn').addEventListener('click', () => this.openModal('credits'));
+
+    // Close via ✕ button or backdrop (both share data-close attribute)
+    document.querySelectorAll('[data-close]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        const key = e.currentTarget.dataset.close.replace('modal-', '');
+        this.closeModal(key);
+      });
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this._closeAll();
+    });
+  }
+
+  /** @param {'how'|'credits'} key */
+  openModal(key) {
+    const modal = this._modals[key];
+    if (!modal) return;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  /** @param {'how'|'credits'} key */
+  closeModal(key) {
+    const modal = this._modals[key];
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  _closeAll() {
+    Object.keys(this._modals).forEach((k) => this.closeModal(k));
+  }
+}
+
+/* =============================================================================
+   MODULE: PauseMenu  (NEW)
+   Responsibility: Handle pause/resume gameplay, volume, and menu navigation.
+   Depends on: YouTubePlayer (to pause/resume/setVolume), TitleMenu (for
+   "Cómo jugar" modal), GameEngine (to call navigateTo on "back to menu").
+   ============================================================================= */
+
+/**
+ * @class PauseMenu
+ * Controls the in-game pause overlay and its actions.
+ * Injected with callbacks so it stays decoupled from concrete implementations.
+ *
+ * @param {Object}   opts
+ * @param {Function} opts.onPause       - Callback: pause video playback.
+ * @param {Function} opts.onResume      - Callback: resume the game.
+ * @param {Function} opts.onHowToPlay   - Callback: open the "Cómo jugar" modal.
+ * @param {Function} opts.onMainMenu    - Callback: return to the title screen.
+ * @param {Function} opts.onVolumeChange- Callback invoked with new volume (0–100).
+ */
+class PauseMenu {
+  constructor({ onPause, onResume, onHowToPlay, onMainMenu, onVolumeChange }) {
+    this._onPause        = onPause;
+    this._onResume       = onResume;
+    this._onHowToPlay    = onHowToPlay;
+    this._onMainMenu     = onMainMenu;
+    this._onVolumeChange = onVolumeChange;
+
+    /** @private @type {boolean} */
+    this._paused = false;
+
+    /** @private DOM refs */
+    this._pauseBtn    = document.getElementById('pause-btn');
+    this._pauseMenu   = document.getElementById('pause-menu');
+    this._volSlider   = document.getElementById('volume-slider');
+    this._volDisplay  = document.getElementById('vol-display');
+
+    this._bindEvents();
+    this._updateSliderFill(this._volSlider.value);
+  }
+
+  // ── Public API ────────────────────────────────────────
+
+  /** Make the pause button visible (called when gameplay starts). */
+  show() {
+    this._pauseBtn.classList.add('visible');
+  }
+
+  /** Hide the pause button entirely (title screen / result overlay). */
+  hide() {
+    this._pauseBtn.classList.remove('visible');
+    this._closePauseMenu();
+  }
+
+  /** Returns true while the game is paused. */
+  get isPaused() { return this._paused; }
+
+  // ── Private ───────────────────────────────────────────
+
+  _bindEvents() {
+    // Pause / resume toggle
+    this._pauseBtn.addEventListener('click', () => this._toggle());
+
+    // Pause menu actions
+    document.getElementById('resume-btn')
+      .addEventListener('click', () => this._resume());
+
+    document.getElementById('pause-how-btn')
+      .addEventListener('click', () => {
+        // Keep game paused; just open the modal on top
+        this._onHowToPlay();
+      });
+
+    document.getElementById('back-to-menu-btn')
+      .addEventListener('click', () => {
+        this._closePauseMenu();
+        this.hide();
+        this._onMainMenu();
+      });
+
+    // Volume slider
+    this._volSlider.addEventListener('input', () => {
+      const v = parseInt(this._volSlider.value, 10);
+      this._volDisplay.textContent = v;
+      this._updateSliderFill(v);
+      this._onVolumeChange(v);
+    });
+
+    // Keyboard: Escape toggles pause when gameplay is active
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this._pauseBtn.classList.contains('visible')) {
+        this._toggle();
+      }
+    });
+  }
+
+  _toggle() {
+    this._paused ? this._resume() : this._pause();
+  }
+
+  _pause() {
+    this._paused = true;
+    this._onPause();            // pause video playback
+    this._updatePauseIcon(true);
+    this._pauseMenu.classList.add('open');
+    this._pauseMenu.setAttribute('aria-hidden', 'false');
+  }
+
+  _resume() {
+    this._onResume();           // engine/player side
+    this._closePauseMenu();
+  }
+
+  _closePauseMenu() {
+    this._paused = false;
+    this._updatePauseIcon(false);
+    this._pauseMenu.classList.remove('open');
+    this._pauseMenu.setAttribute('aria-hidden', 'true');
+  }
+
+  /** Swap the SVG icon between ❚❚ (pause) and ▶ (play). */
+  _updatePauseIcon(isPaused) {
+    const icon = document.getElementById('pause-icon');
+    if (isPaused) {
+      // Show play triangle (resume cue)
+      icon.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 5v14l11-7z"/>
+      </svg>`;
+    } else {
+      // Show two-bar pause symbol
+      icon.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5"  y="3" width="4" height="18" rx="1"/>
+        <rect x="15" y="3" width="4" height="18" rx="1"/>
+      </svg>`;
+    }
+  }
+
+  /** Paint the left (filled) portion of the range track. */
+  _updateSliderFill(value) {
+    const pct = value + '%';
+    this._volSlider.style.backgroundSize = pct + ' 100%';
+    this._volSlider.style.backgroundImage =
+      'linear-gradient(to right, #ff6a00 0%, #ff8c00 100%)';
+    this._volSlider.style.backgroundRepeat = 'no-repeat';
+    this._volSlider.style.backgroundColor = 'rgba(255,255,255,0.1)';
+  }
+}
+
+/* =============================================================================
+   MODULE: GameEngine  (updated to support pause)
+   ============================================================================= */
+class GameEngine {
+  constructor(storyGraph, player, choiceUI, overlayUI) {
+    this._story       = storyGraph;
+    this._player      = player;
+    this._choiceUI    = choiceUI;
+    this._overlayUI   = overlayUI;
+    this._currentNode = null;
+
+    /** @type {PauseMenu|null} Set via setPauseMenu() after construction. */
+    this._pauseMenu   = null;
+  }
+
+  /** Late-inject the PauseMenu to break the circular dependency. */
+  setPauseMenu(pauseMenu) {
+    this._pauseMenu = pauseMenu;
+  }
+
   navigateTo(nodeId) {
     const node = this._story[nodeId];
-
-    if (!node) {
-      console.error(`[GameEngine] Node not found: "${nodeId}"`);
-      return;
-    }
+    if (!node) { console.error(`[GameEngine] Node not found: "${nodeId}"`); return; }
 
     this._currentNode = null;
     this._choiceUI.hide();
     this._overlayUI.hide();
 
-    // Nodes without a video (victory) go straight to the overlay
     if (node.type === 'win') {
       this._player.stop();
       this._overlayUI.show(node);
+      this._pauseMenu?.hide();
       return;
     }
+
+    // Show pause button as soon as gameplay video starts
+    this._pauseMenu?.show();
 
     this._currentNode = node;
     this._player.load(node.video);
   }
 
-  /**
-   * Handles the end of the current video.
-   * Invoked by YouTubePlayer via callback.
-   */
   handleVideoEnded() {
     if (!this._currentNode) return;
-
     const handlers = {
       choices:  (node) => this._choiceUI.show(node),
       autoNext: (node) => setTimeout(() => this.navigateTo(node.next), 200),
-      death:    (node) => this._overlayUI.show(node),
+      death:    (node) => {
+        this._overlayUI.show(node);
+        this._pauseMenu?.hide();
+      },
     };
-
     const handler = handlers[this._currentNode.type];
-    if (handler) {
-      handler(this._currentNode);
-    } else {
-      console.warn(`[GameEngine] No handler for node type: "${this._currentNode.type}"`);
-    }
+    if (handler) handler(this._currentNode);
+    else console.warn(`[GameEngine] No handler for type: "${this._currentNode.type}"`);
   }
 
-  /**
-   * Handles keyboard input for choice selection.
-   * Forwards to ChoiceUI only when a choices-type node is active.
-   * @param {string} key - The key that was pressed.
-   */
   handleKeyPress(key) {
-    if (this._currentNode?.type === 'choices') {
-      this._choiceUI.handleKeyPress(key, this._currentNode);
-    }
+    // Don't process choice shortcuts while paused
+    if (this._pauseMenu?.isPaused) return;
+    if (this._currentNode?.type === 'choices') this._choiceUI.handleKeyPress(key, this._currentNode);
   }
 }
 
 /* =============================================================================
    BOOTSTRAP
-   Wires all modules together and exposes the two global hooks
-   required by YouTube IFrame API and the HTML start button.
    ============================================================================= */
-
-/**
- * Builds and wires all application modules.
- * Returns the configured GameEngine instance.
- * @returns {GameEngine}
- */
 function buildApp() {
-  // --- ChoiceUI & OverlayUI need the engine's navigateTo method,
-  //     but the engine doesn't exist yet. We use a forwarder function
-  //     to break the circular dependency without coupling the modules.
   let engineRef = null;
   const navigate = (nodeId) => engineRef.navigateTo(nodeId);
 
@@ -537,48 +583,66 @@ function buildApp() {
     15_000
   );
 
-  const overlayUI = new OverlayUI(
-    document.getElementById('overlay'),
-    navigate
-  );
-
-  const player = new YouTubePlayer(
-    'yt-player',
-    () => engineRef.handleVideoEnded()
-  );
-
-  const engine = new GameEngine(STORY_GRAPH, player, choiceUI, overlayUI);
+  const overlayUI  = new OverlayUI(document.getElementById('overlay'), navigate);
+  const player     = new YouTubePlayer('yt-player', () => engineRef.handleVideoEnded());
+  const engine     = new GameEngine(STORY_GRAPH, player, choiceUI, overlayUI);
   engineRef = engine;
 
-  // Global keyboard listener — delegated to the engine
+  // Title screen modals manager
+  const titleMenu = new TitleMenu();
+
+  // Pause menu — callbacks injected to keep modules decoupled
+  const pauseMenu = new PauseMenu({
+    onPause: () => {
+      player.pauseVideo();
+    },
+    onResume: () => {
+      player.resume();
+    },
+    onHowToPlay: () => {
+      titleMenu.openModal('how');   // reuse the same modal
+    },
+    onMainMenu: () => {
+      player.stop();
+      engine.resetState?.();
+      returnToTitleScreen();
+    },
+    onVolumeChange: (vol) => {
+      player.setVolume(vol);
+    },
+  });
+
+  engine.setPauseMenu(pauseMenu);
+
+  // Keyboard shortcuts (choice selection, delegated to engine)
   document.addEventListener('keydown', (e) => engine.handleKeyPress(e.key));
 
-  return { engine, player };
+  return { engine, player, titleMenu };
 }
 
-// Instantiate on script load
-const { engine, player } = buildApp();
+/** Resets the UI back to the title screen without reloading the page. */
+function returnToTitleScreen() {
+  const ts = document.getElementById('title-screen');
+  ts.classList.remove('hide');
+  ts.style.opacity = '';
+  ts.style.pointerEvents = '';
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('choices').classList.remove('show');
+}
+
+const { engine, player, titleMenu } = buildApp();
 
 /* =============================================================================
-   GLOBAL HOOKS  (required by external APIs and inline HTML)
+   GLOBAL HOOKS
    ============================================================================= */
 
-/**
- * Called automatically by the YouTube IFrame API once it is ready.
- * Initialises the YouTube player.
- */
 function onYouTubeIframeAPIReady() { // eslint-disable-line no-unused-vars
   player.init();
 }
 
-/**
- * Starts the interactive experience.
- * Bound to the "COMENZAR" button in the HTML.
- */
 function startStory() { // eslint-disable-line no-unused-vars
   document.getElementById('title-screen').classList.add('hide');
   setTimeout(() => engine.navigateTo('intro'), 600);
 }
 
-// Bind start button without inline onclick
 document.getElementById('start-btn').addEventListener('click', startStory);

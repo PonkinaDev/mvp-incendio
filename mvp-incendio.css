@@ -1,6 +1,5 @@
 /* =============================================================================
    MVP INCENDIO — Stylesheet
-   Naming convention: BEM-like, component-scoped classes.
    ============================================================================= */
 
 /* -----------------------------------------------------------------------------
@@ -14,15 +13,14 @@
 
 body {
   background: #000;
-  font-family: Arial, sans-serif;
+  font-family: 'Inter', Arial, sans-serif;
   height: 100vh;
   overflow: hidden;
   color: #fff;
 }
 
 /* -----------------------------------------------------------------------------
-   YouTube player wrapper
-   The iframe is injected by the YT IFrame API inside #yt-player.
+   YouTube game player wrapper
    ----------------------------------------------------------------------------- */
 #yt-wrap {
   position: fixed;
@@ -37,7 +35,6 @@ body {
   pointer-events: none;
 }
 
-/* Prevents the user from accidentally clicking the iframe */
 #yt-block {
   position: fixed;
   inset: 0;
@@ -45,19 +42,18 @@ body {
   background: transparent;
 }
 
-/* -----------------------------------------------------------------------------
-   Title / entry screen
-   ----------------------------------------------------------------------------- */
+/* =============================================================================
+   TITLE SCREEN — redesigned
+   ============================================================================= */
 #title-screen {
   position: fixed;
   inset: 0;
-  background: #000;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 80;
   transition: opacity 0.8s ease;
+  overflow: hidden;
 }
 
 #title-screen.hide {
@@ -65,47 +61,366 @@ body {
   pointer-events: none;
 }
 
+/* ── Fire background video ─────────────────────────────── */
+#title-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #0a0000;
+}
+
+#title-fire-yt {
+  /* Scale the 16:9 iframe to cover the screen like object-fit: cover */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* whichever dimension is larger wins */
+  width: max(100vw, 177.78vh);
+  height: max(56.25vw, 100vh);
+  pointer-events: none;
+  border: none;
+}
+
+/* Gradient vignette on top of video */
+#title-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.72) 100%),
+    linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 35%, transparent 65%, rgba(0,0,0,0.8) 100%);
+}
+
+/* ── Content above video ───────────────────────────────── */
+#title-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  /* subtle bottom bias so title sits slightly above center */
+  transform: translateY(-3%);
+}
+
+/* ── Flame title text ──────────────────────────────────── */
 .title-logo {
-  font-size: clamp(2.5rem, 8vw, 6rem);
+  font-family: 'Bebas Neue', 'Arial Black', sans-serif;
+  font-size: clamp(3.5rem, 11vw, 8rem);
   font-weight: 900;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #fff;
-  text-shadow:
-    0 0 60px rgba(255, 80, 0, 0.9),
-    0 0 120px rgba(255, 40, 0, 0.4);
-  margin-bottom: 0.5rem;
+  text-align: center;
+  line-height: 0.9;
+  margin-bottom: 0.55rem;
+
+  /* Flame gradient on the text */
+  background: linear-gradient(
+    180deg,
+    #fffde7 0%,
+    #fff176 12%,
+    #ffca28 28%,
+    #ff8f00 52%,
+    #e65100 72%,
+    #b71c1c 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+
+  /* Glow layers */
+  filter:
+    drop-shadow(0 0 18px rgba(255, 120, 0, 0.9))
+    drop-shadow(0 0 40px rgba(255, 60, 0, 0.6))
+    drop-shadow(0 0 80px rgba(200, 30, 0, 0.35));
+
+  animation: flamePulse 2.8s ease-in-out infinite;
+}
+
+@keyframes flamePulse {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 18px rgba(255, 120, 0, 0.9))
+      drop-shadow(0 0 40px rgba(255, 60, 0, 0.6))
+      drop-shadow(0 0 80px rgba(200, 30, 0, 0.35));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 28px rgba(255, 160, 20, 1))
+      drop-shadow(0 0 60px rgba(255, 80, 0, 0.8))
+      drop-shadow(0 0 110px rgba(220, 40, 0, 0.5));
+  }
 }
 
 .title-sub {
-  font-size: 0.9rem;
-  letter-spacing: 0.5em;
-  color: #666;
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.6em;
+  color: rgba(255, 200, 120, 0.7);
   text-transform: uppercase;
-  margin-bottom: 3rem;
+  margin-bottom: 2.8rem;
+  text-shadow: 0 0 12px rgba(255, 100, 0, 0.4);
 }
 
-.play-btn {
-  background: none;
-  border: 2px solid #fff;
-  color: #fff;
-  font-size: 1rem;
-  letter-spacing: 0.3em;
+/* ── Menu buttons ──────────────────────────────────────── */
+.title-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.menu-btn {
+  position: relative;
+  width: 260px;
+  padding: 0.85rem 1.5rem;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 1.45rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  padding: 1rem 3rem;
+  color: #fff8e1;
   cursor: pointer;
-  transition: all 0.3s;
+  border: 2px solid rgba(255, 140, 30, 0.5);
+  background: rgba(20, 5, 0, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: all 0.22s ease;
+  overflow: hidden;
+  text-align: center;
 }
 
-.play-btn:hover {
-  background: #fff;
-  color: #000;
+/* Animated left accent bar */
+.menu-btn::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: linear-gradient(90deg, rgba(255, 100, 0, 0.7), transparent);
+  transition: width 0.22s ease;
 }
 
-/* -----------------------------------------------------------------------------
-   Decision panel
-   Slides up from the bottom once a scene ends.
-   ----------------------------------------------------------------------------- */
+/* Animated bottom underline */
+.menu-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 0;
+  background: linear-gradient(90deg, #ff6a00, #ee0979);
+  transition: width 0.28s ease;
+}
+
+.menu-btn:hover {
+  border-color: rgba(255, 160, 60, 0.9);
+  background: rgba(50, 15, 0, 0.85);
+  color: #fff;
+  transform: translateX(6px);
+  box-shadow:
+    0 0 20px rgba(255, 100, 0, 0.3),
+    inset 0 0 15px rgba(255, 80, 0, 0.1);
+}
+
+.menu-btn:hover::before { width: 5px; }
+.menu-btn:hover::after  { width: 100%; }
+
+.menu-btn:active {
+  transform: translateX(3px) scale(0.98);
+}
+
+.menu-icon {
+  display: inline-block;
+  margin-right: 0.4rem;
+  opacity: 0.8;
+  font-size: 1rem;
+  vertical-align: middle;
+}
+
+/* ── Staggered entrance animation ─────────────────────── */
+.menu-btn:nth-child(1) { animation: menuSlideIn 0.5s 0.1s both; }
+.menu-btn:nth-child(2) { animation: menuSlideIn 0.5s 0.22s both; }
+.menu-btn:nth-child(3) { animation: menuSlideIn 0.5s 0.34s both; }
+
+@keyframes menuSlideIn {
+  from { opacity: 0; transform: translateX(-30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.title-logo { animation: logoReveal 0.8s 0s both, flamePulse 2.8s 0.8s ease-in-out infinite; }
+
+@keyframes logoReveal {
+  from { opacity: 0; transform: scale(0.85) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* =============================================================================
+   MODALS
+   ============================================================================= */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.open {
+  display: flex;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+}
+
+.modal-box {
+  position: relative;
+  z-index: 1;
+  background: #0e0500;
+  border: 1px solid rgba(255, 120, 30, 0.3);
+  padding: 2.5rem 3rem;
+  max-width: 560px;
+  width: 90%;
+  box-shadow:
+    0 0 60px rgba(200, 60, 0, 0.2),
+    inset 0 0 40px rgba(255, 60, 0, 0.03);
+  animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.92) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  border-color: rgba(255, 100, 0, 0.6);
+  color: #fff;
+  background: rgba(255, 60, 0, 0.1);
+}
+
+.modal-title {
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 2rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 1.8rem;
+  background: linear-gradient(90deg, #ffca28, #ff6d00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Cómo jugar ────────────────────────────────────────── */
+.howto-placeholder {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px dashed rgba(255, 140, 30, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.howto-placeholder-inner {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.howto-placeholder-inner span {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.howto-placeholder-inner p {
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+}
+
+.howto-placeholder-inner small {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.25);
+  font-family: monospace;
+}
+
+/* Replace placeholder with real image via: */
+/* .howto-placeholder { padding: 0; border: none; } */
+/* .howto-placeholder img { width: 100%; height: 100%; object-fit: cover; } */
+
+/* ── Créditos ──────────────────────────────────────────── */
+.modal-box--credits {
+  text-align: center;
+}
+
+.credits-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  margin-bottom: 2rem;
+}
+
+.credits-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.credits-role {
+  font-size: 0.65rem;
+  letter-spacing: 0.45em;
+  color: rgba(255, 160, 60, 0.6);
+  text-transform: uppercase;
+}
+
+.credits-name {
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.08em;
+  color: #fff;
+}
+
+/* Separator lines between entries */
+.credits-list li + li {
+  border-top: 1px solid rgba(255, 100, 0, 0.12);
+  padding-top: 1.4rem;
+}
+
+.credits-year {
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+  color: rgba(255, 255, 255, 0.2);
+  text-transform: uppercase;
+}
+
+/* =============================================================================
+   GAME UI — Decision panel (unchanged logic, refined styling)
+   ============================================================================= */
 #choices {
   position: fixed;
   bottom: 0;
@@ -142,7 +457,6 @@ body {
   justify-content: center;
 }
 
-/* Individual choice button */
 .choice-btn {
   flex: 1;
   max-width: 300px;
@@ -173,7 +487,6 @@ body {
   letter-spacing: 0;
 }
 
-/* Animated underline on hover */
 .choice-btn::after {
   content: '';
   position: absolute;
@@ -185,9 +498,7 @@ body {
   transition: width 0.2s ease;
 }
 
-.choice-btn:hover::after {
-  width: 100%;
-}
+.choice-btn:hover::after { width: 100%; }
 
 .choice-btn:hover {
   background: rgba(255, 255, 255, 0.14);
@@ -195,9 +506,9 @@ body {
   transform: translateY(-2px);
 }
 
-/* -----------------------------------------------------------------------------
-   Auto-select countdown bar
-   ----------------------------------------------------------------------------- */
+/* =============================================================================
+   Countdown bar
+   ============================================================================= */
 #countdown-bar {
   width: 100%;
   max-width: 900px;
@@ -221,10 +532,9 @@ body {
   to   { transform: scaleX(0); }
 }
 
-/* -----------------------------------------------------------------------------
-   Result overlay  (death / victory)
-   Uses a solid black background to prevent any video frame from bleeding through.
-   ----------------------------------------------------------------------------- */
+/* =============================================================================
+   Result overlay
+   ============================================================================= */
 #overlay {
   position: fixed;
   inset: 0;
@@ -253,6 +563,7 @@ body {
   text-transform: uppercase;
   margin-bottom: 1rem;
   line-height: 1;
+  font-family: 'Bebas Neue', Arial, sans-serif;
 }
 
 .overlay-title.death {
@@ -308,21 +619,251 @@ body {
   box-shadow: 0 0 20px rgba(57, 255, 20, 0.2);
 }
 
-/* -----------------------------------------------------------------------------
-   Responsive adjustments
-   ----------------------------------------------------------------------------- */
+/* =============================================================================
+   PAUSE BUTTON — fixed during gameplay
+   ============================================================================= */
+#pause-btn {
+  position: fixed;
+  top: 1.1rem;
+  right: 1.2rem;
+  z-index: 30;
+  width: 46px;
+  height: 46px;
+  background: rgba(10, 3, 0, 0.65);
+  border: 1px solid rgba(255, 140, 30, 0.35);
+  color: rgba(255, 200, 120, 0.85);
+  border-radius: 4px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+#pause-btn:hover {
+  background: rgba(40, 12, 0, 0.85);
+  border-color: rgba(255, 160, 60, 0.75);
+  transform: scale(1.08);
+}
+
+#pause-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+#pause-btn.visible { display: flex; }
+
+/* =============================================================================
+   PAUSE MENU
+   ============================================================================= */
+#pause-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+#pause-menu.open {
+  display: flex;
+  animation: pauseFadeIn 0.22s ease both;
+}
+
+@keyframes pauseFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+#pause-menu-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 320px;
+  background: rgba(10, 3, 0, 0.92);
+  border: 1px solid rgba(255, 120, 30, 0.25);
+  padding: 2.4rem 2.5rem 2.2rem;
+  box-shadow:
+    0 0 60px rgba(200, 60, 0, 0.18),
+    inset 0 0 30px rgba(255, 50, 0, 0.03);
+  animation: pauseSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes pauseSlideUp {
+  from { opacity: 0; transform: translateY(28px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.pause-label {
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.6em;
+  color: rgba(255, 160, 60, 0.55);
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+}
+
+.pause-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  width: 100%;
+  margin-bottom: 2.2rem;
+}
+
+.pause-nav-btn {
+  position: relative;
+  width: 100%;
+  padding: 0.78rem 1.2rem;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fff8e1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 140, 30, 0.22);
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  transition: all 0.18s ease;
+}
+
+.pause-nav-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 2px; width: 0;
+  background: linear-gradient(90deg, #ff6a00, #ee0979);
+  transition: width 0.22s ease;
+}
+
+.pause-nav-btn:hover {
+  background: rgba(255, 100, 0, 0.1);
+  border-color: rgba(255, 160, 60, 0.6);
+  transform: translateX(5px);
+}
+
+.pause-nav-btn:hover::after { width: 100%; }
+
+.pause-nav-btn--danger {
+  border-color: rgba(255, 50, 30, 0.2);
+  color: rgba(255, 160, 130, 0.85);
+}
+
+.pause-nav-btn--danger:hover {
+  background: rgba(200, 30, 0, 0.12);
+  border-color: rgba(255, 80, 50, 0.55);
+  color: #fff;
+}
+
+.pause-nav-icon {
+  display: inline-block;
+  margin-right: 0.45rem;
+  font-size: 0.85rem;
+  opacity: 0.75;
+  vertical-align: middle;
+}
+
+/* ── Volume control ────────────────────────────────────── */
+.volume-control {
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 1.4rem;
+}
+
+.volume-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.45em;
+  color: rgba(255, 200, 120, 0.5);
+  text-transform: uppercase;
+  margin-bottom: 0.85rem;
+  cursor: default;
+}
+
+.vol-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.vol-min,
+.vol-max {
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  color: rgba(255, 200, 120, 0.45);
+  min-width: 24px;
+  text-align: center;
+}
+
+.volume-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  outline: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ff8c00;
+  border: 2px solid rgba(255, 200, 120, 0.6);
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+  box-shadow: 0 0 8px rgba(255, 100, 0, 0.5);
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+  background: #ffa820;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ff8c00;
+  border: 2px solid rgba(255, 200, 120, 0.6);
+  cursor: pointer;
+}
+
+/* =============================================================================
+   Responsive
+   ============================================================================= */
 @media (max-width: 600px) {
+  .menu-btn { width: 220px; font-size: 1.2rem; }
+
   .choices-row {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .choice-btn {
-    max-width: 100%;
-  }
+  .choice-btn { max-width: 100%; }
 
-  .overlay-btns {
-    flex-direction: column;
-    align-items: center;
-  }
+  .overlay-btns { flex-direction: column; align-items: center; }
+
+  .modal-box { padding: 2rem 1.5rem; }
+
+  #pause-menu-box { width: 90%; padding: 2rem 1.5rem; }
 }
