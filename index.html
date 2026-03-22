@@ -89,18 +89,18 @@
       <ul class="credits-list">
         <li>
           <span class="credits-role">Desarrollador</span>
-          <span class="credits-name">Barragán Imbett Jaime</span>
+          <span class="credits-name">Jaime Barragán Imbett</span>
         </li>
         <li>
           <span class="credits-role">Desarrollador</span>
-          <span class="credits-name">Castro Molina Paula Andrea</span>
+          <span class="credits-name">Paula Andrea Castro Molina</span>
         </li>
         <li>
           <span class="credits-role">Desarrollador</span>
-          <span class="credits-name">Figueroa Dayan Camilo</span>
+          <span class="credits-name">Dayan Camilo Figueroa Trujillo</span>
         </li>
       </ul>
-      <p class="credits-year">© 2025 — MVP Incendio</p>
+      <p class="credits-year">© 2026 — MVP Incendio</p>
     </div>
   </div>
 
@@ -140,22 +140,30 @@
 
       <!-- Volume control -->
       <div class="volume-control">
-        <label class="volume-label" for="volume-slider">
-          <svg class="vol-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
-          </svg>
-          Volumen
-        </label>
+        <p class="volume-label">Volumen</p>
         <div class="slider-row">
-          <span class="vol-min">0</span>
-          <input
-            type="range"
-            id="volume-slider"
-            class="volume-slider"
-            min="0" max="100" value="80"
-            aria-label="Volumen general"
-          >
-          <span class="vol-max" id="vol-display">80</span>
+
+          <!-- Mute toggle button -->
+          <button
+            id="mute-btn"
+            class="mute-btn"
+            aria-label="Silenciar"
+            data-muted="false"
+          ></button>
+
+          <!-- Custom slider -->
+          <div class="slider-track-wrap">
+            <div class="slider-active-fill" id="slider-active-fill"></div>
+            <input
+              type="range"
+              id="volume-slider"
+              class="volume-slider"
+              min="0" max="100" value="80"
+              aria-label="Volumen general"
+            >
+          </div>
+
+          <span class="vol-display" id="vol-display">80</span>
         </div>
       </div>
 

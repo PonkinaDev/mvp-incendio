@@ -385,11 +385,19 @@ class PauseMenu {
     /** @private @type {boolean} */
     this._paused = false;
 
+    /** @private @type {boolean} */
+    this._muted = false;
+
+    /** @private Volume before mute so we can restore it */
+    this._lastVolume = 80;
+
     /** @private DOM refs */
     this._pauseBtn    = document.getElementById('pause-btn');
     this._pauseMenu   = document.getElementById('pause-menu');
     this._volSlider   = document.getElementById('volume-slider');
     this._volDisplay  = document.getElementById('vol-display');
+    this._activeFill  = document.getElementById('slider-active-fill');
+    this._muteBtn     = document.getElementById('mute-btn');
 
     this._bindEvents();
     this._updateSliderFill(this._volSlider.value);
@@ -397,35 +405,25 @@ class PauseMenu {
 
   // ── Public API ────────────────────────────────────────
 
-  /** Make the pause button visible (called when gameplay starts). */
-  show() {
-    this._pauseBtn.classList.add('visible');
-  }
+  show() { this._pauseBtn.classList.add('visible'); }
 
-  /** Hide the pause button entirely (title screen / result overlay). */
   hide() {
     this._pauseBtn.classList.remove('visible');
     this._closePauseMenu();
   }
 
-  /** Returns true while the game is paused. */
   get isPaused() { return this._paused; }
 
   // ── Private ───────────────────────────────────────────
 
   _bindEvents() {
-    // Pause / resume toggle
     this._pauseBtn.addEventListener('click', () => this._toggle());
 
-    // Pause menu actions
     document.getElementById('resume-btn')
       .addEventListener('click', () => this._resume());
 
     document.getElementById('pause-how-btn')
-      .addEventListener('click', () => {
-        // Keep game paused; just open the modal on top
-        this._onHowToPlay();
-      });
+      .addEventListener('click', () => this._onHowToPlay());
 
     document.getElementById('back-to-menu-btn')
       .addEventListener('click', () => {
@@ -437,12 +435,35 @@ class PauseMenu {
     // Volume slider
     this._volSlider.addEventListener('input', () => {
       const v = parseInt(this._volSlider.value, 10);
+      this._lastVolume = v;
       this._volDisplay.textContent = v;
       this._updateSliderFill(v);
+      // Un-mute if user drags the slider
+      if (this._muted && v > 0) this._setMuted(false);
       this._onVolumeChange(v);
     });
 
-    // Keyboard: Escape toggles pause when gameplay is active
+    // Mute toggle button
+    this._muteBtn.addEventListener('click', () => {
+      if (this._muted) {
+        // Restore previous volume
+        this._setMuted(false);
+        const restoreVol = this._lastVolume > 0 ? this._lastVolume : 80;
+        this._volSlider.value = restoreVol;
+        this._volDisplay.textContent = restoreVol;
+        this._updateSliderFill(restoreVol);
+        this._onVolumeChange(restoreVol);
+      } else {
+        this._lastVolume = parseInt(this._volSlider.value, 10) || 80;
+        this._setMuted(true);
+        this._volSlider.value = 0;
+        this._volDisplay.textContent = 0;
+        this._updateSliderFill(0);
+        this._onVolumeChange(0);
+      }
+    });
+
+    // Escape key toggles pause
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this._pauseBtn.classList.contains('visible')) {
         this._toggle();
@@ -450,20 +471,18 @@ class PauseMenu {
     });
   }
 
-  _toggle() {
-    this._paused ? this._resume() : this._pause();
-  }
+  _toggle() { this._paused ? this._resume() : this._pause(); }
 
   _pause() {
     this._paused = true;
-    this._onPause();            // pause video playback
+    this._onPause();
     this._updatePauseIcon(true);
     this._pauseMenu.classList.add('open');
     this._pauseMenu.setAttribute('aria-hidden', 'false');
   }
 
   _resume() {
-    this._onResume();           // engine/player side
+    this._onResume();
     this._closePauseMenu();
   }
 
@@ -474,16 +493,18 @@ class PauseMenu {
     this._pauseMenu.setAttribute('aria-hidden', 'true');
   }
 
-  /** Swap the SVG icon between ❚❚ (pause) and ▶ (play). */
+  _setMuted(muted) {
+    this._muted = muted;
+    this._muteBtn.dataset.muted = String(muted);
+  }
+
   _updatePauseIcon(isPaused) {
     const icon = document.getElementById('pause-icon');
     if (isPaused) {
-      // Show play triangle (resume cue)
       icon.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <path d="M8 5v14l11-7z"/>
       </svg>`;
     } else {
-      // Show two-bar pause symbol
       icon.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <rect x="5"  y="3" width="4" height="18" rx="1"/>
         <rect x="15" y="3" width="4" height="18" rx="1"/>
@@ -491,14 +512,12 @@ class PauseMenu {
     }
   }
 
-  /** Paint the left (filled) portion of the range track. */
+  /** Clip the active fill image from the right — image never stretches. */
   _updateSliderFill(value) {
-    const pct = value + '%';
-    this._volSlider.style.backgroundSize = pct + ' 100%';
-    this._volSlider.style.backgroundImage =
-      'linear-gradient(to right, #ff6a00 0%, #ff8c00 100%)';
-    this._volSlider.style.backgroundRepeat = 'no-repeat';
-    this._volSlider.style.backgroundColor = 'rgba(255,255,255,0.1)';
+    if (this._activeFill) {
+      const rightClip = (100 - value) + '%';
+      this._activeFill.style.clipPath = `inset(0 ${rightClip} 0 0)`;
+    }
   }
 }
 
