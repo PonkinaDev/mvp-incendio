@@ -10,19 +10,34 @@
 </head>
 <body>
 
-  <!-- YouTube game player container (injected by IFrame API) -->
+  <!-- ═══════════════════════════════════════════════════
+       GAME VIDEO PLAYER
+       HTML5 <video> replaces the old YouTube IFrame.
+       The element fills the viewport exactly like the old
+       #yt-wrap / #yt-player layout, so existing CSS rules
+       that target #yt-wrap still apply without changes.
+       ═══════════════════════════════════════════════════ -->
   <div id="yt-wrap">
-    <div id="yt-player"></div>
+    <video
+      id="game-video"
+      playsinline
+      preload="auto"
+    ></video>
   </div>
+  <!--
+    NOTE: #yt-block (the click-blocker overlay that prevented users from
+    interacting with the YouTube iframe) is kept so existing CSS is
+    unaffected; it has no functional role with the native player.
+  -->
   <div id="yt-block"></div>
 
+
   <!-- ═══════════════════════════════════════════════════
-       TITLE / ENTRY SCREEN  –  redesigned
+       TITLE / ENTRY SCREEN
        ═══════════════════════════════════════════════════ -->
   <div id="title-screen">
 
-    <!-- Fire background video (iframe, muted autoplay loop) -->
-    <!-- Reemplaza FIRE_VIDEO_ID con el ID del video de incendio que prefieras -->
+    <!-- Fire background video (YouTube iframe, muted autoplay loop) -->
     <div id="title-bg">
       <iframe
         id="title-fire-yt"
@@ -67,7 +82,6 @@
     <div class="modal-box">
       <button class="modal-close" data-close="modal-how">✕</button>
       <h2 class="modal-title">Cómo jugar</h2>
-      <!-- Reemplaza esta sección con tu imagen de instrucciones -->
       <div class="howto-placeholder">
         <div class="howto-placeholder-inner">
           <span>🖼</span>
@@ -77,6 +91,7 @@
       </div>
     </div>
   </div>
+
 
   <!-- ═══════════════════════════════════════════════════
        MODAL — Créditos
@@ -110,13 +125,13 @@
        ═══════════════════════════════════════════════════ -->
   <button id="pause-btn" aria-label="Pausar">
     <span id="pause-icon">
-      <!-- Two bars = pause -->
       <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <rect x="5"  y="3" width="4" height="18" rx="1"/>
         <rect x="15" y="3" width="4" height="18" rx="1"/>
       </svg>
     </span>
   </button>
+
 
   <!-- ═══════════════════════════════════════════════════
        PAUSE MENU OVERLAY
@@ -143,7 +158,6 @@
         <p class="volume-label">Volumen</p>
         <div class="slider-row">
 
-          <!-- Mute toggle button -->
           <button
             id="mute-btn"
             class="mute-btn"
@@ -151,7 +165,6 @@
             data-muted="false"
           ></button>
 
-          <!-- Custom slider -->
           <div class="slider-track-wrap">
             <div class="slider-active-fill" id="slider-active-fill"></div>
             <input
@@ -170,8 +183,9 @@
     </div>
   </div>
 
+
   <!-- ═══════════════════════════════════════════════════
-       GAME UI
+       GAME UI — Choices + Countdown
        ═══════════════════════════════════════════════════ -->
   <div id="choices">
     <div class="choices-label">¿Qué decides?</div>
@@ -181,15 +195,31 @@
     </div>
   </div>
 
+
+  <!-- ═══════════════════════════════════════════════════
+       GAME UI — Result Overlay (death / win)
+       Added #overlay-subtitle between title and desc.
+       ═══════════════════════════════════════════════════ -->
   <div id="overlay">
-    <div class="overlay-tag"   id="overlay-tag"></div>
-    <div class="overlay-title" id="overlay-title"></div>
-    <div class="overlay-desc"  id="overlay-desc"></div>
-    <div class="overlay-btns"  id="overlay-btns"></div>
+    <div class="overlay-tag"      id="overlay-tag"></div>
+    <div class="overlay-title"    id="overlay-title"></div>
+    <!--
+      NEW: subtitle line for cause-of-death label
+      (e.g. "Flashover", "Asfixia por intoxicación").
+      Add CSS for .overlay-subtitle in mvp-incendio.css if desired.
+    -->
+    <div class="overlay-subtitle" id="overlay-subtitle"></div>
+    <div class="overlay-desc"     id="overlay-desc"></div>
+    <div class="overlay-btns"     id="overlay-btns"></div>
   </div>
 
-  <!-- YouTube IFrame API -->
-  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <!--
+    NOTE: The YouTube IFrame API script tag has been REMOVED.
+    The native HTML5 <video> element needs no external API.
+    The old onYouTubeIframeAPIReady() global hook in the JS is
+    also gone — player.init() is called directly inside buildApp().
+  -->
   <script src="mvp-incendio.js"></script>
 </body>
 </html>

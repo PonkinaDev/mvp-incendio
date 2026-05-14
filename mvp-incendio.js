@@ -1,37 +1,31 @@
 /**
  * @file mvp-incendio.js
  * @description Interactive branching-video experience "MVP Incendio".
+ *              Videos are served locally from the /Videos/ folder.
  *
  * Architecture — SOLID principles applied:
  *
  *  S — Single Responsibility
- *        Each module has one clear purpose:
  *        StoryData   → holds the narrative tree (pure data, no logic).
- *        YouTubePlayer → owns all interaction with the YT IFrame API.
+ *        VideoPlayer → owns all interaction with the HTML5 <video> element.
  *        ChoiceUI    → renders decision buttons and the countdown bar.
  *        OverlayUI   → renders death / victory result screens.
  *        GameEngine  → orchestrates the flow between the modules above.
- *        TitleMenu   → manages the title screen nav modals (NEW).
+ *        TitleMenu   → manages the title screen nav modals.
  *
  *  O — Open / Closed
- *        New scene types (e.g. "minigame", "timed") can be added to
- *        StoryData and handled in GameEngine.handleSceneEnd() without
- *        touching any other module.
+ *        New scene types can be added to StoryData and handled in
+ *        GameEngine.handleSceneEnd() without touching any other module.
  *
  *  L — Liskov Substitution
- *        Every scene-type handler in GameEngine follows the same
- *        contract: receive a node object, produce a side effect.
- *        They are interchangeable from the engine's perspective.
+ *        Every scene-type handler in GameEngine follows the same contract.
  *
  *  I — Interface Segregation
  *        Each module exposes only the methods its consumers need.
- *        YouTubePlayer does not know about UI; ChoiceUI does not know
- *        about YouTube; OverlayUI does not know about game state.
  *
  *  D — Dependency Inversion
- *        GameEngine depends on the abstract interfaces of each module,
- *        not on their internal implementation details. Callbacks are
- *        injected at construction time.
+ *        GameEngine depends on abstract interfaces; callbacks injected at
+ *        construction time.
  */
 
 'use strict';
@@ -40,169 +34,254 @@
    MODULE: StoryData
    ============================================================================= */
 
-/** @enum {string} Video IDs indexed by logical name. */
-const VIDEO_IDS = Object.freeze({
-  MVP1: 'JkpT1p6kx_A',
-  MVP2: 'lyiyeg1a_q8',
-  MVP3: 'f_ws5om-Qt8',
-  MVP4: '_5jOYoXuJ8Q',
-  MVP5: 'hxkzjoSS9R8',
-  MVP6: 'khcUzFZEuGw',
-  MVP7: 'fzoq9A1XoEM',
-  MVP8: 'OGY6pNy7Qd8',
-  MVP9: '3dBtkS7063c',
+/**
+ * Base path for all video files.
+ * Videos must be in a folder called "Videos" at the same level as this script.
+ * @constant {string}
+ */
+const VIDEO_BASE = 'Videos/';
+
+/** @enum {string} Video file paths indexed by logical name. */
+const VIDEO_PATHS = Object.freeze({
+  MARCOS_01: VIDEO_BASE + 'VideoMarcos01.mp4',
+  MARCOS_02: VIDEO_BASE + 'VideoMarcos02.mp4',
+  MARCOS_03: VIDEO_BASE + 'VideoMarcos03.mp4',
+  MARCOS_04: VIDEO_BASE + 'VideoMarcos04.mp4',
+  MARCOS_05: VIDEO_BASE + 'VideoMarcos05.mp4',
+  MARCOS_06: VIDEO_BASE + 'VideoMarcos06.mp4',
+  MARCOS_07: VIDEO_BASE + 'VideoMarcos07.mp4',
 });
 
-/** @type {Object.<string, StoryNode>} */
+/**
+ * Story graph describing the branching narrative.
+ *
+ * Node types:
+ *   'choices'  – video ends → show choice buttons
+ *   'autoNext' – video ends → auto-advance to next node (no user input)
+ *   'death'    – video ends → show death overlay
+ *   'win'      – no video   → show win/continue overlay immediately
+ *
+ * @type {Object.<string, StoryNode>}
+ */
 const STORY_GRAPH = Object.freeze({
 
+  // ── INICIO ────────────────────────────────────────────────────────────────
   intro: {
-    video: VIDEO_IDS.MVP1,
+    video: VIDEO_PATHS.MARCOS_01,
     type: 'choices',
     choices: [
-      { label: 'Subir al ascensor',            sub: 'Puede ser más rápido para bajar',  next: 'ascensor'  },
-      { label: 'Usar las escaleras',            sub: 'Más seguro, pero hay humo',        next: 'escaleras' },
+      {
+        label: 'Abrir directamente',
+        sub:   'Parece la salida más rápida',
+        next:  'abrir_directo',
+      },
+      {
+        label: 'Tocar primero con el dorso de la mano',
+        sub:   'Comprobar si la puerta está caliente antes de abrirla',
+        next:  'tocar_dorso',
+      },
     ],
   },
 
-  ascensor: {
-    video: VIDEO_IDS.MVP2,
-    type: 'death',
-    title: 'MORISTE',
-    desc: 'Te asfixiaste atrapado en el ascensor. El humo no perdona.',
-    btns: [{ label: '↺ Reintentar', next: 'intro', style: '' }],
-  },
-
-  escaleras: {
-    video: VIDEO_IDS.MVP3,
-    type: 'choices',
-    choices: [
-      { label: 'Saltar el fuego',               sub: 'Las llamas parecen cruzables...',       next: 'saltar_fuego' },
-      { label: 'Usar el extintor',              sub: 'El extintor está en el corredor',       next: 'ruta_b1'      },
-      { label: 'Usar la manguera del gabinete', sub: 'Controlar el fuego antes de avanzar',   next: 'manguera'     },
-    ],
-  },
-
-  saltar_fuego: {
-    video: VIDEO_IDS.MVP8,
-    type: 'death',
-    title: 'MORISTE',
-    desc: 'Las llamas te alcanzaron. El fuego no se puede cruzar.',
-    btns: [{ label: '↺ Reintentar desde aquí', next: 'escaleras', style: '' }],
-  },
-
-  ruta_b1: { video: VIDEO_IDS.MVP5, type: 'autoNext', next: 'ruta_b2' },
-  ruta_b2: { video: VIDEO_IDS.MVP9, type: 'autoNext', next: 'ruta_b3' },
-  ruta_b3: {
-    video: VIDEO_IDS.MVP6,
-    type: 'choices',
-    choices: [
-      { label: 'Salida de emergencia', sub: 'La señal verde parpadea al fondo', next: 'win_salida' },
-      { label: 'Salida principal',     sub: 'Por donde entraste al edificio',   next: 'win_salida' },
-    ],
-  },
-
-  manguera: {
-    video: VIDEO_IDS.MVP4,
-    type: 'choices',
-    choices: [
-      { label: 'Salida de emergencia', sub: 'El corredor lateral parece despejado', next: 'salida_emerg_manguera' },
-      { label: 'Salida principal',     sub: 'Por donde entraste al edificio',       next: 'win_salida'            },
-    ],
-  },
-
-  salida_emerg_manguera: {
-    video: VIDEO_IDS.MVP7,
-    type: 'death',
-    title: 'FLASHOVER',
-    desc: 'La temperatura alcanzó el punto de ignición. Todo ardió en un instante.',
+  // ── RAMA A: Abrir directamente → muerte Flashover ─────────────────────────
+  abrir_directo: {
+    video: VIDEO_PATHS.MARCOS_02,
+    type:  'death',
+    title: 'HAS MUERTO',
+    subtitle: 'Flashover',
+    desc: 'El flashover es el punto de ignición simultánea de todos los '
+        + 'materiales combustibles de una habitación. Al abrir la puerta sin '
+        + 'verificar, permitiste la entrada de oxígeno que desencadenó una '
+        + 'explosión de calor instantánea. No hay tiempo de reacción posible.',
     btns: [
-      { label: '↺ Reintentar',     next: 'manguera',   style: ''        },
-      { label: 'Salida principal', next: 'win_salida', style: 'primary' },
+      { label: '↺ Reintentar', next: 'intro', style: '' },
     ],
   },
 
-  win_salida: {
-    type: 'win',
-    title: '¡SALISTE!',
-    desc: 'Lograste escapar del incendio. Tus decisiones te salvaron la vida.',
-    btns: [{ label: '↺ Jugar de nuevo', next: 'intro', style: 'primary' }],
+  // ── RAMA B: Tocar dorso → pasillo ─────────────────────────────────────────
+  tocar_dorso: {
+    video: VIDEO_PATHS.MARCOS_03,
+    type:  'autoNext',
+    next:  'pasillo',
   },
+
+  pasillo: {
+    video: VIDEO_PATHS.MARCOS_04,
+    type:  'choices',
+    choices: [
+      {
+        label: 'Correr',
+        sub:   'Llegar a la salida lo más rápido posible',
+        next:  'correr',
+      },
+      {
+        label: 'Agacharse e ir rápido',
+        sub:   'El humo sube, pero el trayecto es largo',
+        next:  'agacharse',
+      },
+      {
+        label: 'Agacharse y cubrirse nariz y boca con un pañuelo',
+        sub:   'Protegerse del humo antes de avanzar',
+        next:  'panuelo',
+      },
+    ],
+  },
+
+  // ── Opción 1 del pasillo: Correr → muerte asfixia ─────────────────────────
+  correr: {
+    video: VIDEO_PATHS.MARCOS_05,
+    type:  'death',
+    title: 'HAS MUERTO',
+    subtitle: 'Asfixia por intoxicación',
+    desc: 'Al correr erguido inhalaste grandes cantidades de gases tóxicos '
+        + '(monóxido de carbono, cianuro de hidrógeno) presentes en el humo. '
+        + 'Estos gases causan pérdida de consciencia en segundos y son letales '
+        + 'antes de que el fuego te alcance físicamente.',
+    btns: [
+      { label: '↺ Reintentar', next: 'pasillo', style: '' },
+    ],
+  },
+
+  // ── Opción 2 del pasillo: Agacharse solo → muerte asfixia ─────────────────
+  agacharse: {
+    video: VIDEO_PATHS.MARCOS_06,
+    type:  'death',
+    title: 'HAS MUERTO',
+    subtitle: 'Intoxicación por asfixia',
+    desc: 'Agacharse reduce la exposición al humo en trayectos cortos, pero '
+        + 'no es suficiente en pasillos largos. Sin protección en nariz y boca, '
+        + 'seguiste inhalando gases tóxicos durante todo el recorrido. '
+        + 'La combinación de calor y toxinas te superó antes de llegar a la salida.',
+    btns: [
+      { label: '↺ Reintentar', next: 'pasillo', style: '' },
+    ],
+  },
+
+  // ── Opción 3 del pasillo: Pañuelo → continuará ────────────────────────────
+  panuelo: {
+    video: VIDEO_PATHS.MARCOS_07,
+    type:  'win',
+    // 'win' nodes show the overlay immediately after the video ends.
+    // The overlay is shown from handleVideoEnded via the 'win_pending' mechanism.
+    // See GameEngine.handleVideoEnded() below.
+  },
+
+  // ── Pantalla final: Continuará ────────────────────────────────────────────
+  continuara: {
+    type:  'win',
+    title: 'CONTINUARÁ…',
+    desc:  'Tomaste la decisión correcta. Cubrirte nariz y boca y mantenerte '
+         + 'agachado durante todo el trayecto filtró parte de los gases y te '
+         + 'mantuvo en la capa de aire más limpia. Tu historia continúa.',
+    btns: [
+      { label: '↺ Jugar de nuevo', next: 'intro', style: 'primary' },
+    ],
+  },
+
 });
 
 /* =============================================================================
-   MODULE: YouTubePlayer
+   MODULE: VideoPlayer
+   Wraps the native HTML5 <video> element with the same public API that
+   GameEngine expects (originally fulfilled by YouTubePlayer).
    ============================================================================= */
-class YouTubePlayer {
-  constructor(containerId, onEnded) {
-    this._player         = null;
-    this._ready          = false;
-    this._pendingVideoId = null;
-    this._onEnded        = onEnded;
-    this._containerId    = containerId;
+
+/**
+ * @class VideoPlayer
+ * Owns all interaction with the HTML5 <video> element.
+ *
+ * Public API:
+ *   init()            – connect to the DOM element (call once on startup)
+ *   load(src)         – load and play a new video file
+ *   stop()            – pause, rewind, and clear src (use for back-to-menu)
+ *   pauseAtEnd()      – pause on the last frame WITHOUT clearing src
+ *                       (use before showing overlays/choices)
+ *   pauseVideo()      – pause playback
+ *   resume()          – resume playback
+ *   setVolume(0-100)  – set volume (converts to 0-1 range for HTML5)
+ */
+class VideoPlayer {
+  /**
+   * @param {string}   elementId - ID of the <video> element in the DOM.
+   * @param {Function} onEnded   - Callback fired when the current video ends.
+   */
+  constructor(elementId, onEnded) {
+    this._elementId = elementId;
+    this._onEnded   = onEnded;
+    this._video     = null;
   }
 
+  /** Connect to the <video> element and attach the 'ended' listener. */
   init() {
-    this._player = new YT.Player(this._containerId, {
-      width: '100%',
-      height: '100%',
-      videoId: '',
-      playerVars: {
-        autoplay:       1,
-        controls:       0,
-        rel:            0,
-        showinfo:       0,
-        modestbranding: 1,
-        iv_load_policy: 3,
-        fs:             0,
-        disablekb:      1,
-        playsinline:    1,
-        enablejsapi:    1,
-      },
-      events: {
-        onReady:       () => this._handleReady(),
-        onStateChange: (e) => this._handleStateChange(e),
-      },
-    });
-  }
-
-  load(videoId) {
-    if (!this._ready) { this._pendingVideoId = videoId; return; }
-    this._player.loadVideoById({ videoId, startSeconds: 0 });
-  }
-
-  stop() {
-    if (this._ready && this._player) this._player.stopVideo();
-  }
-
-  /** Pauses the currently playing video. */
-  pauseVideo() {
-    if (this._ready && this._player) this._player.pauseVideo();
-  }
-
-  /** Resumes a paused video. */
-  resume() {
-    if (this._ready && this._player) this._player.playVideo();
+    this._video = document.getElementById(this._elementId);
+    if (!this._video) {
+      console.error(`[VideoPlayer] Element #${this._elementId} not found.`);
+      return;
+    }
+    this._video.addEventListener('ended', () => this._onEnded());
+    this._video.muted  = false;
+    this._video.volume = 0.8; // 80% default — matches slider default
   }
 
   /**
-   * Sets the player volume.
-   * @param {number} vol - 0 to 100.
+   * Load a new video source and start playing immediately.
+   * @param {string} src - Relative or absolute path to the video file.
    */
-  setVolume(vol) {
-    if (this._ready && this._player) this._player.setVolume(vol);
+  load(src) {
+    if (!this._video) return;
+    this._video.src = src;
+    this._video.load();
+    this._video.play().catch((err) => {
+      console.warn('[VideoPlayer] Autoplay blocked:', err);
+    });
   }
 
-  _handleReady() {
-    this._ready = true;
-    if (this._pendingVideoId) {
-      this._player.loadVideoById({ videoId: this._pendingVideoId, startSeconds: 0 });
-      this._pendingVideoId = null;
+  /**
+   * FIX: Pause on the very last frame, keeping the src intact.
+   * Use this when showing overlays or choice panels so the background
+   * remains the final video frame instead of going black.
+   */
+  pauseAtEnd() {
+    if (!this._video) return;
+    this._video.pause();
+    // Seek back one frame (≈33 ms) to ensure the last frame is visible.
+    // Some browsers clear the frame when playback ends; this prevents that.
+    if (this._video.duration && isFinite(this._video.duration)) {
+      this._video.currentTime = Math.max(0, this._video.duration - 0.033);
     }
   }
 
-  _handleStateChange(event) {
-    if (event.data === YT.PlayerState.ENDED) this._onEnded();
+  /**
+   * Fully stop playback and clear the src.
+   * Use ONLY when returning to the main menu, to free resources.
+   */
+  stop() {
+    if (!this._video) return;
+    this._video.pause();
+    this._video.currentTime = 0;
+    this._video.src = '';
+    this._video.load(); // flush the media pipeline
+  }
+
+  /** Pause the current video (mid-playback, e.g. pause menu). */
+  pauseVideo() {
+    if (!this._video) return;
+    this._video.pause();
+  }
+
+  /** Resume a paused video. */
+  resume() {
+    if (!this._video) return;
+    this._video.play().catch(() => {});
+  }
+
+  /**
+   * Set the playback volume.
+   * @param {number} vol - 0 to 100 (maps to HTML5 range 0.0–1.0).
+   */
+  setVolume(vol) {
+    if (!this._video) return;
+    this._video.volume = Math.max(0, Math.min(100, vol)) / 100;
   }
 }
 
@@ -273,13 +352,22 @@ class OverlayUI {
 
   show(node) {
     const isWin = node.type === 'win';
+
     this._container.querySelector('#overlay-tag').textContent   = isWin ? 'Resultado final' : '— Fin —';
-    this._container.querySelector('#overlay-title').textContent = node.title;
+    this._container.querySelector('#overlay-title').textContent = node.title || '';
     this._container.querySelector('#overlay-title').className   = `overlay-title ${isWin ? 'win' : 'death'}`;
-    this._container.querySelector('#overlay-desc').textContent  = node.desc;
+
+    // Optional subtitle (e.g. "Flashover", "Asfixia por intoxicación")
+    const subtitleEl = this._container.querySelector('#overlay-subtitle');
+    if (subtitleEl) {
+      subtitleEl.textContent = node.subtitle || '';
+      subtitleEl.style.display = node.subtitle ? '' : 'none';
+    }
+
+    this._container.querySelector('#overlay-desc').textContent  = node.desc || '';
 
     const btnsEl = this._container.querySelector('#overlay-btns');
-    btnsEl.innerHTML = node.btns
+    btnsEl.innerHTML = (node.btns || [])
       .map((b) => `<button class="overlay-btn ${b.style || ''}" data-next="${b.next}">${b.label}</button>`)
       .join('');
 
@@ -296,15 +384,9 @@ class OverlayUI {
 }
 
 /* =============================================================================
-   MODULE: TitleMenu  (NEW)
-   Responsibility: Wire "Cómo jugar" and "Créditos" modals on the title screen.
+   MODULE: TitleMenu
+   Manages "Cómo jugar" and "Créditos" modals on the title screen.
    ============================================================================= */
-
-/**
- * @class TitleMenu
- * Manages the title screen secondary navigation (modal windows).
- * Completely decoupled from the game engine.
- */
 class TitleMenu {
   constructor() {
     this._modals = {
@@ -314,13 +396,10 @@ class TitleMenu {
     this._bindEvents();
   }
 
-  /** Wire all button clicks and backdrop / close-button dismissals. */
   _bindEvents() {
-    // Open buttons
     document.getElementById('how-btn').addEventListener('click', () => this.openModal('how'));
     document.getElementById('credits-btn').addEventListener('click', () => this.openModal('credits'));
 
-    // Close via ✕ button or backdrop (both share data-close attribute)
     document.querySelectorAll('[data-close]').forEach((el) => {
       el.addEventListener('click', (e) => {
         const key = e.currentTarget.dataset.close.replace('modal-', '');
@@ -328,7 +407,6 @@ class TitleMenu {
       });
     });
 
-    // Close on Escape key
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') this._closeAll();
     });
@@ -356,24 +434,9 @@ class TitleMenu {
 }
 
 /* =============================================================================
-   MODULE: PauseMenu  (NEW)
-   Responsibility: Handle pause/resume gameplay, volume, and menu navigation.
-   Depends on: YouTubePlayer (to pause/resume/setVolume), TitleMenu (for
-   "Cómo jugar" modal), GameEngine (to call navigateTo on "back to menu").
+   MODULE: PauseMenu
+   Handles pause/resume, volume, and navigation to main menu.
    ============================================================================= */
-
-/**
- * @class PauseMenu
- * Controls the in-game pause overlay and its actions.
- * Injected with callbacks so it stays decoupled from concrete implementations.
- *
- * @param {Object}   opts
- * @param {Function} opts.onPause       - Callback: pause video playback.
- * @param {Function} opts.onResume      - Callback: resume the game.
- * @param {Function} opts.onHowToPlay   - Callback: open the "Cómo jugar" modal.
- * @param {Function} opts.onMainMenu    - Callback: return to the title screen.
- * @param {Function} opts.onVolumeChange- Callback invoked with new volume (0–100).
- */
 class PauseMenu {
   constructor({ onPause, onResume, onHowToPlay, onMainMenu, onVolumeChange }) {
     this._onPause        = onPause;
@@ -382,28 +445,20 @@ class PauseMenu {
     this._onMainMenu     = onMainMenu;
     this._onVolumeChange = onVolumeChange;
 
-    /** @private @type {boolean} */
-    this._paused = false;
-
-    /** @private @type {boolean} */
-    this._muted = false;
-
-    /** @private Volume before mute so we can restore it */
+    this._paused     = false;
+    this._muted      = false;
     this._lastVolume = 80;
 
-    /** @private DOM refs */
-    this._pauseBtn    = document.getElementById('pause-btn');
-    this._pauseMenu   = document.getElementById('pause-menu');
-    this._volSlider   = document.getElementById('volume-slider');
-    this._volDisplay  = document.getElementById('vol-display');
-    this._activeFill  = document.getElementById('slider-active-fill');
-    this._muteBtn     = document.getElementById('mute-btn');
+    this._pauseBtn   = document.getElementById('pause-btn');
+    this._pauseMenu  = document.getElementById('pause-menu');
+    this._volSlider  = document.getElementById('volume-slider');
+    this._volDisplay = document.getElementById('vol-display');
+    this._activeFill = document.getElementById('slider-active-fill');
+    this._muteBtn    = document.getElementById('mute-btn');
 
     this._bindEvents();
     this._updateSliderFill(this._volSlider.value);
   }
-
-  // ── Public API ────────────────────────────────────────
 
   show() { this._pauseBtn.classList.add('visible'); }
 
@@ -413,8 +468,6 @@ class PauseMenu {
   }
 
   get isPaused() { return this._paused; }
-
-  // ── Private ───────────────────────────────────────────
 
   _bindEvents() {
     this._pauseBtn.addEventListener('click', () => this._toggle());
@@ -432,21 +485,17 @@ class PauseMenu {
         this._onMainMenu();
       });
 
-    // Volume slider
     this._volSlider.addEventListener('input', () => {
       const v = parseInt(this._volSlider.value, 10);
       this._lastVolume = v;
       this._volDisplay.textContent = v;
       this._updateSliderFill(v);
-      // Un-mute if user drags the slider
       if (this._muted && v > 0) this._setMuted(false);
       this._onVolumeChange(v);
     });
 
-    // Mute toggle button
     this._muteBtn.addEventListener('click', () => {
       if (this._muted) {
-        // Restore previous volume
         this._setMuted(false);
         const restoreVol = this._lastVolume > 0 ? this._lastVolume : 80;
         this._volSlider.value = restoreVol;
@@ -463,7 +512,6 @@ class PauseMenu {
       }
     });
 
-    // Escape key toggles pause
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this._pauseBtn.classList.contains('visible')) {
         this._toggle();
@@ -512,7 +560,6 @@ class PauseMenu {
     }
   }
 
-  /** Clip the active fill image from the right — image never stretches. */
   _updateSliderFill(value) {
     if (this._activeFill) {
       const rightClip = (100 - value) + '%';
@@ -522,7 +569,8 @@ class PauseMenu {
 }
 
 /* =============================================================================
-   MODULE: GameEngine  (updated to support pause)
+   MODULE: GameEngine
+   Orchestrates the narrative flow between VideoPlayer, ChoiceUI, OverlayUI.
    ============================================================================= */
 class GameEngine {
   constructor(storyGraph, player, choiceUI, overlayUI) {
@@ -531,8 +579,6 @@ class GameEngine {
     this._choiceUI    = choiceUI;
     this._overlayUI   = overlayUI;
     this._currentNode = null;
-
-    /** @type {PauseMenu|null} Set via setPauseMenu() after construction. */
     this._pauseMenu   = null;
   }
 
@@ -541,6 +587,10 @@ class GameEngine {
     this._pauseMenu = pauseMenu;
   }
 
+  /**
+   * Navigate to a named story node.
+   * @param {string} nodeId
+   */
   navigateTo(nodeId) {
     const node = this._story[nodeId];
     if (!node) { console.error(`[GameEngine] Node not found: "${nodeId}"`); return; }
@@ -549,39 +599,66 @@ class GameEngine {
     this._choiceUI.hide();
     this._overlayUI.hide();
 
-    if (node.type === 'win') {
-      this._player.stop();
+    // 'win' nodes with no video show the overlay immediately.
+    // FIX: use pauseAtEnd() instead of stop() to keep the last frame visible.
+    if (node.type === 'win' && !node.video) {
+      this._player.pauseAtEnd();
       this._overlayUI.show(node);
       this._pauseMenu?.hide();
       return;
     }
 
-    // Show pause button as soon as gameplay video starts
+    // Show pause button as soon as gameplay starts.
     this._pauseMenu?.show();
 
     this._currentNode = node;
     this._player.load(node.video);
   }
 
+  /**
+   * Called by VideoPlayer when the current video reaches its end.
+   * Dispatches to the appropriate handler based on node type.
+   */
   handleVideoEnded() {
     if (!this._currentNode) return;
+
     const handlers = {
-      choices:  (node) => this._choiceUI.show(node),
-      autoNext: (node) => setTimeout(() => this.navigateTo(node.next), 200),
-      death:    (node) => {
+      // FIX: pause on last frame before showing buttons
+      choices: (node) => {
+        this._player.pauseAtEnd();
+        this._choiceUI.show(node);
+      },
+      autoNext: (node) => {
+        setTimeout(() => this.navigateTo(node.next), 200);
+      },
+      // FIX: pause on last frame before showing death overlay
+      death: (node) => {
+        this._player.pauseAtEnd();
         this._overlayUI.show(node);
         this._pauseMenu?.hide();
       },
+      // FIX: pause on last frame before showing win overlay
+      win: (node) => {
+        const resultNodeId = node.resultNode || 'continuara';
+        const resultNode   = this._story[resultNodeId];
+        if (resultNode) {
+          this._player.pauseAtEnd();
+          this._overlayUI.show(resultNode);
+          this._pauseMenu?.hide();
+        }
+      },
     };
+
     const handler = handlers[this._currentNode.type];
     if (handler) handler(this._currentNode);
     else console.warn(`[GameEngine] No handler for type: "${this._currentNode.type}"`);
   }
 
   handleKeyPress(key) {
-    // Don't process choice shortcuts while paused
     if (this._pauseMenu?.isPaused) return;
-    if (this._currentNode?.type === 'choices') this._choiceUI.handleKeyPress(key, this._currentNode);
+    if (this._currentNode?.type === 'choices') {
+      this._choiceUI.handleKeyPress(key, this._currentNode);
+    }
   }
 }
 
@@ -599,42 +676,40 @@ function buildApp() {
       fill:  document.getElementById('countdown-fill'),
     },
     navigate,
-    15_000
+    15_000,
   );
 
-  const overlayUI  = new OverlayUI(document.getElementById('overlay'), navigate);
-  const player     = new YouTubePlayer('yt-player', () => engineRef.handleVideoEnded());
-  const engine     = new GameEngine(STORY_GRAPH, player, choiceUI, overlayUI);
+  const overlayUI = new OverlayUI(document.getElementById('overlay'), navigate);
+
+  // HTML5 video player — fires onEnded when a video finishes
+  const player = new VideoPlayer('game-video', () => engineRef.handleVideoEnded());
+
+  const engine  = new GameEngine(STORY_GRAPH, player, choiceUI, overlayUI);
   engineRef = engine;
 
-  // Title screen modals manager
+  // Title screen modals
   const titleMenu = new TitleMenu();
 
-  // Pause menu — callbacks injected to keep modules decoupled
+  // Pause menu with injected callbacks
   const pauseMenu = new PauseMenu({
-    onPause: () => {
-      player.pauseVideo();
-    },
-    onResume: () => {
-      player.resume();
-    },
-    onHowToPlay: () => {
-      titleMenu.openModal('how');   // reuse the same modal
-    },
-    onMainMenu: () => {
+    onPause:        () => player.pauseVideo(),
+    onResume:       () => player.resume(),
+    onHowToPlay:    () => titleMenu.openModal('how'),
+    // FIX: back-to-menu is the only place that calls stop() (clears src)
+    onMainMenu:     () => {
       player.stop();
-      engine.resetState?.();
       returnToTitleScreen();
     },
-    onVolumeChange: (vol) => {
-      player.setVolume(vol);
-    },
+    onVolumeChange: (vol) => player.setVolume(vol),
   });
 
   engine.setPauseMenu(pauseMenu);
 
-  // Keyboard shortcuts (choice selection, delegated to engine)
+  // Keyboard shortcuts delegated to engine
   document.addEventListener('keydown', (e) => engine.handleKeyPress(e.key));
+
+  // Initialise the player (no async API — just wires the DOM element)
+  player.init();
 
   return { engine, player, titleMenu };
 }
@@ -643,7 +718,7 @@ function buildApp() {
 function returnToTitleScreen() {
   const ts = document.getElementById('title-screen');
   ts.classList.remove('hide');
-  ts.style.opacity = '';
+  ts.style.opacity      = '';
   ts.style.pointerEvents = '';
   document.getElementById('overlay').style.display = 'none';
   document.getElementById('choices').classList.remove('show');
@@ -652,13 +727,13 @@ function returnToTitleScreen() {
 const { engine, player, titleMenu } = buildApp();
 
 /* =============================================================================
-   GLOBAL HOOKS
+   GLOBAL ENTRY POINTS
    ============================================================================= */
 
-function onYouTubeIframeAPIReady() { // eslint-disable-line no-unused-vars
-  player.init();
-}
-
+/**
+ * Called by the "Jugar" button on the title screen.
+ * Exposed globally so the inline onclick and the addEventListener both work.
+ */
 function startStory() { // eslint-disable-line no-unused-vars
   document.getElementById('title-screen').classList.add('hide');
   setTimeout(() => engine.navigateTo('intro'), 600);

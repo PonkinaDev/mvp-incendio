@@ -29,6 +29,15 @@ body {
   z-index: 1;
 }
 
+/* ── FIX: el elemento <video> debe llenar su contenedor ────────────────────── */
+#game-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;   /* mantiene aspect-ratio sin recortar */
+  background: #000;
+}
+
 #yt-wrap iframe {
   width: 100% !important;
   height: 100% !important;
@@ -512,11 +521,17 @@ body {
 
 /* =============================================================================
    Result overlay
+   ─────────────────────────────────────────────────────────────────────────────
+   FIX: fondo transparente para que el último frame del video se vea detrás.
+   El negro viene del body / #yt-wrap cuando el video termina; ahora el overlay
+   tiene un backdrop semitransparente en lugar de background: #000 sólido.
    ============================================================================= */
 #overlay {
   position: fixed;
   inset: 0;
-  background: #000;
+  /* FIX: sin fondo negro — el video pausado se ve detrás */
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(2px);
   z-index: 90;
   display: none;
   flex-direction: column;
@@ -529,7 +544,7 @@ body {
 .overlay-tag {
   font-size: 0.68rem;
   letter-spacing: 0.5em;
-  color: #555;
+  color: #888;
   text-transform: uppercase;
   margin-bottom: 1.2rem;
 }
@@ -539,27 +554,39 @@ body {
   font-weight: 900;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  margin-bottom: 1rem;
+  margin-bottom: 0.6rem;
   line-height: 1;
   font-family: 'Bebas Neue', Arial, sans-serif;
 }
 
 .overlay-title.death {
   color: #ff3300;
-  text-shadow: 0 0 40px rgba(255, 50, 0, 0.6);
+  text-shadow: 0 0 40px rgba(255, 50, 0, 0.8);
 }
 
 .overlay-title.win {
   color: #39ff14;
-  text-shadow: 0 0 40px rgba(57, 255, 20, 0.5);
+  text-shadow: 0 0 40px rgba(57, 255, 20, 0.7);
+}
+
+/* Subtítulo: causa de muerte o resultado */
+.overlay-subtitle {
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: clamp(1rem, 2.5vw, 1.6rem);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(255, 160, 80, 0.85);
+  margin-bottom: 1.2rem;
+  text-shadow: 0 0 20px rgba(255, 100, 0, 0.5);
 }
 
 .overlay-desc {
   font-size: 1rem;
-  color: #aaa;
-  max-width: 480px;
+  color: #ccc;
+  max-width: 500px;
   line-height: 1.8;
   margin-bottom: 2.5rem;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
 }
 
 .overlay-btns {
@@ -570,31 +597,34 @@ body {
 }
 
 .overlay-btn {
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  color: #bbb;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #ccc;
   padding: 0.8rem 1.8rem;
   font-size: 0.85rem;
   letter-spacing: 0.25em;
   text-transform: uppercase;
   cursor: pointer;
   transition: all 0.25s;
+  backdrop-filter: blur(4px);
 }
 
 .overlay-btn:hover {
   border-color: #fff;
   color: #fff;
+  background: rgba(0, 0, 0, 0.75);
 }
 
 .overlay-btn.primary {
-  border-color: rgba(57, 255, 20, 0.45);
+  border-color: rgba(57, 255, 20, 0.55);
   color: #39ff14;
+  background: rgba(0, 0, 0, 0.55);
 }
 
 .overlay-btn.primary:hover {
-  background: rgba(57, 255, 20, 0.08);
+  background: rgba(57, 255, 20, 0.1);
   border-color: #39ff14;
-  box-shadow: 0 0 20px rgba(57, 255, 20, 0.2);
+  box-shadow: 0 0 20px rgba(57, 255, 20, 0.25);
 }
 
 /* =============================================================================
@@ -744,7 +774,7 @@ body {
   width: 100%;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 1.4rem;
-  margin-top: auto;          /* flota hacia abajo pero sin llegar al extremo */
+  margin-top: auto;
   margin-bottom: 0;
 }
 
@@ -761,7 +791,6 @@ body {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  /* Indent from both sides so slider + number don't touch the frame */
   padding: 0 0.5rem;
 }
 
@@ -805,35 +834,29 @@ body {
   flex: 1;
   position: relative;
   height: 28px;
-  /* SlideActive = fondo/vacío del track */
   background: url('Assets/SlideActive.png') center / 100% 100% no-repeat;
   display: flex;
   align-items: center;
-  /* Must be visible so thumb can overflow 14px on each side */
   overflow: visible;
 }
 
-/* Filled (active) portion — siempre tamaño completo, recortada con clip-path */
+/* Filled (active) portion */
 .slider-active-fill {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;           /* siempre 100% — nunca se estira */
+  width: 100%;
   height: 100%;
   background: url('Assets/SlideDefault.png') left center / 100% 100% no-repeat;
   pointer-events: none;
-  /* clip-path recorta desde la derecha; actualizado por JS */
-  clip-path: inset(0 20% 0 0);   /* default value=80 → recorta 20% desde la derecha */
+  clip-path: inset(0 20% 0 0);
 }
 
-/* The actual range input — invisible track, custom thumb.
-   Extended 14px (half thumb-width) beyond each edge of the track image
-   so the thumb CENTER reaches the exact left/right edge of the track at 0 / 100. */
 .volume-slider {
   position: absolute;
   top: 0;
-  left: -14px;                    /* half of 28px thumb */
-  width: calc(100% + 28px);       /* full thumb width added */
+  left: -14px;
+  width: calc(100% + 28px);
   height: 100%;
   -webkit-appearance: none;
   appearance: none;
@@ -845,7 +868,6 @@ body {
   z-index: 2;
 }
 
-/* Hide default track in all browsers */
 .volume-slider::-webkit-slider-runnable-track {
   background: transparent;
   height: 100%;
@@ -856,7 +878,6 @@ body {
   height: 100%;
 }
 
-/* Custom thumb — Handle asset */
 .volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 28px;
